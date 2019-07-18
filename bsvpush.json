@@ -1,0 +1,9 @@
+{
+  "name": "bsvpush",
+  "owner": "jolon",
+  "description": "Push files to metanet",
+  "sponsor": {
+    "to": "jolon@moneybutton.com"
+  },
+  "version": "0.0.1"
+}

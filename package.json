@@ -1,0 +1,30 @@
+{
+  "name": "bsvpush",
+  "version": "0.0.1",
+  "description": "Push files to metanet",
+  "main": "dist/cli.js",
+  "bin": "dist/cli.js",
+  "scripts": {
+    "tsc": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "debug": "ts-node src/index.ts"
+  },
+  "author": "jolon",
+  "license": "ISC",
+  "dependencies": {
+    "@types/command-line-args": "^5.0.0",
+    "@types/node": "^12.6.2",
+    "bitindex-sdk": "^3.0.14",
+    "bsv": "^0.27.2",
+    "command-line-args": "^5.1.1",
+    "readline-promise": "^1.0.4"
+  },
+  "devDependencies": {
+    "ts-node": "^8.3.0",
+    "typescript": "^3.5.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jolonf/bsvpush.git"
+  }
+}
