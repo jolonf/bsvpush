@@ -8,7 +8,6 @@ import { MetanetCache } from './metanet_cache';
 import { MetanetNode } from './metanet_node';
 
 const bsv = require('bsv');
-const explorer = require('bitcore-explorers');
 const bitindex = new BitIndexSDK();
 
 /**
