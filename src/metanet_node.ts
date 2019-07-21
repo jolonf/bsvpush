@@ -37,7 +37,7 @@ export class MetanetNode {
   toJSON(): any {
     let json = {
       keyPath: this.keyPath,
-      txId: this.txId,
+      txId: this.txId.toString(),
       index: this.index,
       name: this.name,
       removed: this.removed,

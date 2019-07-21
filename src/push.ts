@@ -222,7 +222,7 @@ export class Push {
       console.log(`Sending funding transaction: ${fundingTx.id}`);
       const response = await bitindex.tx.send(fundingTx.toString());
       await this.waitForConfirmation(fundingTx.id);
-      this.sendMetanetTransactions(null, this.metanetCache.root);
+      await this.sendMetanetTransactions(null, this.metanetCache.root);
       fs.writeFileSync(path.join(process.cwd(), '.bsvpush', 'metanet.json'), JSON.stringify(this.metanetCache.toJSON(), null, 2));
     }
   }
@@ -386,7 +386,7 @@ export class Push {
     console.log(`Sending metanet transaction: ${tx.id}`);
     const response = await bitindex.tx.send(tx.toString());
     console.log(response);
-    await this.sleep(1000); 
+    //await this.sleep(1000); 
 
     // Get UTXOs for this key which will be the parent key of the children to be sent next
     const privateKey = this.metanetCache.masterKey.deriveChild(node.keyPath);
