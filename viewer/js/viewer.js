@@ -25,13 +25,13 @@
     }
 
     document.querySelector('#search-button').addEventListener('click', () => {
-      window.location = window.location.protocol + window.location.host + '?tx=' + document.querySelector('#search-input').value
+      window.location.search = 'tx=' + document.querySelector('#search-input').value
     })
   })
   
   async function displayFeatured() {
     const featuredTransactions = [
-      '57186972ad80ad7684311daa6a3061cdae54362393a1d9d16e83717d0dced641',
+      '546d70c4de9324e9368ee92720ccbdc43c86332ac2677782b992d61d158bcfd0',
       'a508bb614add6a66ba14b05794c9ae98afb34675a26d591dced88221c5ca4d03'
     ]
     displayRepos(featuredTransactions)
@@ -47,6 +47,9 @@
           "limit": 50,
           "find": {
               "out.s8": 'bsvpush.json'
+          },
+          "sort": {
+            "blk.i": -1
           },
           "project": {
               "node": 1,
