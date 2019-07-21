@@ -410,7 +410,7 @@ export class Push {
         await this.sleep(1000);
       }
 
-      console.log(JSON.stringify(await bitindex.tx.get(txid), null, 2));
+      //console.log(JSON.stringify(await bitindex.tx.get(txid), null, 2));
 
       console.log(`\nTransaction confirmed: ${txid}`);
   }

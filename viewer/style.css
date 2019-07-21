@@ -2,6 +2,7 @@ body {
   font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
   font-size: 1.4em;
   margin: 0px;
+  width: 100%;
 }
 
 h1 {
@@ -23,7 +24,14 @@ a:hover {
 }
 
 div#banner {
+  width: 100%;
+  box-sizing: border-box;
   padding-top: 20px;
+  margin-left: 20px;
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 a#title {
@@ -33,7 +41,6 @@ a#title {
 span#title {
   font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
   font-size: 2em;
-  margin-left: 20px;
 }
 
 #title .code {
@@ -52,6 +59,40 @@ span#title {
   text-align: center;
   color: grey;
   font-size: 0.8em;
+  display: inline-block;
+}
+
+#search-container {
+  margin-left: auto;
+  margin-right: 30px;
+}
+
+#search-input {
+  box-sizing: border-box;
+  font-size: 0.7em;
+  height: 32px;
+  border: 1px solid #ddd;
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+  padding-left: 5px;
+}
+
+#search-button {
+  position: relative;
+  top: 0px;
+  padding: 6px 10px;
+  margin-top: 8px;
+  margin-right: 16px;
+  background: #ddd;
+  font-size: 17px;
+  border: none;
+  cursor: pointer;
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
+#search-button:hover {
+  background: #ccc;
 }
 
 #parent-back {
@@ -69,11 +110,16 @@ span#title {
 
 #repos {
   display: none;
+  width: 980px;
+  max-width: 100%;
+  margin: auto;
+  box-sizing: border-box;
 }
 
 #repos-tabs {
   display: flex;
   width: 980px;
+  max-width: 100%;
   margin: auto;
 }
 
@@ -122,11 +168,13 @@ span#title {
 }
 
 #node-banner-display {
+  box-sizing: border-box;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: space-between;
   margin: auto;
   width: 980px;
+  max-width: 100%;
 }
 
 div#node-title {
@@ -154,7 +202,9 @@ div#money-button-container {
 }
 
 #clone-container {
+  box-sizing: border-box;
   width: 980px;
+  max-width: 100%;
   margin: auto;
   font-size: 0.8em;
   color: grey;
@@ -176,19 +226,18 @@ div#money-button-container {
 }
 
 table {
+  box-sizing: border-box;
   margin: auto;
   width: 980px;
+  max-width: 100%;
   border: 1px solid rgb(197, 203, 209);
   border-collapse: collapse;
 }
 
-th, td {
-  border-bottom: 1px solid rgb(197, 203, 209);
-}
-
-table thead {
-  background-color: rgb(240, 250, 255);
-  color: rgb(92, 92, 92);
+tr {
+  box-sizing: border-box;
+  width: 980px;
+  max-width: 100%;
 }
 
 tr:hover {
@@ -206,7 +255,9 @@ td.txid {
 }
 
 div#readme {
-  width: 880px;
+  box-sizing: border-box;
+  width: 980px;
+  max-width: 100%;
   margin: auto;
   border: 1px solid rgb(197, 203, 209);
   border-radius: 5px;
@@ -221,6 +272,7 @@ div#readme {
 
 div#file-data {
   width: 980px;
+  max-width: 100%;
   margin: auto;
   border: 1px solid rgb(144, 162, 179);
   display: none;
@@ -229,12 +281,24 @@ div#file-data {
   padding-top: 0px;
 }
 
+#img-data-container {
+  text-align: center;
+  padding-top: 50px;
+  padding-bottom: 50px;
+  display: none;
+}
+
+#img-data {
+  width: 32px;
+}
+
 pre#text {
   overflow: auto;
   padding-left: 20px;
   padding-bottom: 20px;
   line-height: 1.5;
   margin-bottom: 0px;
+  display: none;
 }
 
 #footer-message {

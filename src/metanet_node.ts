@@ -26,7 +26,7 @@ export class MetanetNode {
 
   fromJSON(json: any) {
     this.keyPath = json.keyPath;
-    this.txId = json.txId; // need to convert from hex
+    this.txId = json.txId;
     this.index = json.index;
     this.name = json.name;
     this.removed = json.removed;
@@ -37,7 +37,7 @@ export class MetanetNode {
   toJSON(): any {
     let json = {
       keyPath: this.keyPath,
-      txId: Buffer.from(this.txId).toString('hex'),
+      txId: this.txId,
       index: this.index,
       name: this.name,
       removed: this.removed,

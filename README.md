@@ -20,7 +20,7 @@ To clone an existing repository, use the transaction id of the root parent node 
 bsvpush clone a508bb614add6a66ba14b05794c9ae98afb34675a26d591dced88221c5ca4d03
 ```
 
-Find and view repositories at [Codeonchain](https://codeonchain.network).
+Find and view repositories at [codeonchain.network](https://codeonchain.network).
 
 ## Init
 
@@ -30,7 +30,7 @@ Before pushing a repository you must run ```bsvpush init``` in the root director
 bsvpush init
 ```
 
-This creates the following directories and files:
+The following directories and files will be generated:
 
 ```
 HOME/.bsvpush/funding_key
@@ -76,7 +76,7 @@ Be very careful about what you upload to the blockchain. Bsvpush will list all f
 }
 ```
 
-The properties should be self explanatory. The ```sponsor``` property is used to create a moneybutton. The properties of the ```sponsor``` property should be compatible with moneybutton and should be able to be applied directory to the moneybutton configuration object. This allows for more complex transactions such as sending to multiple accounts, which can be used to support projects that your project may rely on.
+The properties should be self explanatory. The ```sponsor``` property is used to create a moneybutton. The properties of the ```sponsor``` property should be compatible with moneybutton and should be able to be applied directly to the moneybutton configuration object. This allows for more complex transactions such as sending to multiple accounts, which can be used to support projects that your project may rely on.
 
 ## Push
 
@@ -86,7 +86,7 @@ To begin the upload run:
 bsvpush push
 ```
 
-Bsvpush will first navigate the directory structure, ignoring any files that match .bsvignore, and estimate the fees for each file. Before uploading it will provide an overall funding estimate so that you can ensure you have the funds in your funding wallet. Bsvpush will confirm with you before sending any transactions.
+Bsvpush will first navigate the directory structure, ignoring any files that match the files listed in ```.bsvignore```, and estimate the fees for each file. Before uploading it will provide an overall funding estimate so that you can ensure you have the funds in your funding wallet. Bsvpush will confirm with you before sending any transactions.
 
-If you enter ```Y```, bsvpush will first fund all of the transactions. This will be performed using a single transaction which will have many outputs, one for each transaction required for each metanet node. Bsvpush will wait until the funding transaction has been confirmed. This will take several minutes. Once it is confirmed it will send through all of the individual transactions. Bsvpush will not wait for these to be confirmed. The transaction ids will be listed as they are sent and you can view them in [Codeonchain](https://codeonchain.network).
+If you enter ```Y```, bsvpush will first fund all of the transactions. This will be performed using a single transaction which will have many outputs, one for each transaction required for each metanet node. Bsvpush will wait until the funding transaction has been confirmed. This will take several minutes. Once it is confirmed it will send through all of the individual transactions. Bsvpush will not wait for these to be confirmed. The transaction ids will be listed as they are sent and you can view them in [codeonchain.network](https://codeonchain.network).
 

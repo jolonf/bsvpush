@@ -4,9 +4,10 @@
 
   <head>
     <title>Codeonchain</title>
-    <meta name="viewport" content="width=device-width">
+    <meta name="viewport" content="width=device-width, initial-scale=0.8">
     <link rel="icon" type="image/png" href="img/favicon.png">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="js/viewer.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.9.0/showdown.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.8/styles/default.min.css">
@@ -16,10 +17,15 @@
 
   <body>
     <div id='banner'>
-      <span id='title'>
-        <a id="title" href="https://codeonchain.network"><span class='code'>Code</span><span class='on'>on</span><span class='chain'>chain</span></a>
-      </span>
-      <span id='upload'>Upload a repository to metanet using <a href="https://github.com/jolonf/bsvpush">bsvpush</a></span>
+      <div id='title-container'>
+        <span id='title'>
+          <a id="title" href="https://codeonchain.network"><span class='code'>Code</span><span class='on'>on</span><span class='chain'>chain</span></a>
+        </span>
+        <span id='upload'>Upload a repository to metanet using <a href="https://github.com/jolonf/bsvpush">bsvpush</a></span>
+      </div>
+      <div id='search-container'>
+        <input id='search-input' type='text' placeholder='Transaction id'><button id='search-button'><i class="fa fa-search"></i></button>
+      </div>
     </div>
 
     <div id='content'></div>
@@ -101,6 +107,9 @@
     </div>
 
     <div id="file-data">
+      <div id='img-data-container'>
+          <img id="img-data">
+      </div>
       <pre id="text"></pre>
     </div>
 

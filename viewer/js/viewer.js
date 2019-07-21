@@ -23,11 +23,15 @@
 
       displayFeatured()
     }
+
+    document.querySelector('#search-button').addEventListener('click', () => {
+      window.location = window.location.protocol + window.location.host + '?tx=' + document.querySelector('#search-input').value
+    })
   })
   
   async function displayFeatured() {
     const featuredTransactions = [
-      '73fc317c548676f5c082c9381fbbcbd64cbfb7d0838c15b5964dd5dabb53e50a',
+      '57186972ad80ad7684311daa6a3061cdae54362393a1d9d16e83717d0dced641',
       'a508bb614add6a66ba14b05794c9ae98afb34675a26d591dced88221c5ca4d03'
     ]
     displayRepos(featuredTransactions)
@@ -66,7 +70,7 @@
     const response = await fetch(url, { headers: { key: '1DzNX2LzKrmoyYVyqMG46LLknzSd7TUYYP' } })
     const json = await response.json()
     
-    const nodes = []
+    let nodes = []
 
     for (const metanet of json.metanet) { 
       const bsvpushJson = JSON.parse(metanet.out[0].s5)
@@ -79,6 +83,9 @@
       }
       nodes.push(metanetNode)
     }
+
+    // If there are nodes with the same public key, then remove older ones, and only keep the latest
+    nodes = filterLatest(nodes)
 
     const tbody = document.querySelector('.repos-table tbody')
     // Remove all rows
@@ -108,12 +115,24 @@
     })
   }
 
+  /**
+   * For nodes with the same public key only returns the first.
+   * @param {*} nodes 
+   */
+  function filterLatest(nodes) {
+    const visited = []
+    return nodes.filter(node => {
+      if (visited.find(n => n.nodeKey == node.nodeKey)) {
+        return false
+      }
+      visited.push(node)
+      return true
+    })
+  }
+
   async function displayMetanetNode(txid) {
     const metanetNode = await getMetanetNode(txid)
-    console.log(`Metanet Node public key: ${metanetNode.nodeKey}`)
-    const children = await getChildNodes(metanetNode.nodeTxId)
-    // sort children
-    children.sort((a, b) => a.name < b.name ? -1 : 1)
+    //console.log(`Metanet Node public key: ${metanetNode.nodeKey}`)
 
     document.querySelector('#metanet-node').style.display = 'block'
 
@@ -126,7 +145,16 @@
       document.querySelector('a#parent-back').style.display = 'inline'
     }
 
+    displayChildren(metanetNode.nodeTxId)
     document.querySelector('#clone input').value = `bsvpush clone ${metanetNode.nodeTxId}`
+    displayFile(metanetNode)
+    document.querySelector('#spinner').style.display = 'none'
+  }
+
+  async function displayChildren(txId) {
+    const children = await getChildNodes(txId)
+    // sort children alphabetically
+    children.sort((a, b) => a.name < b.name ? -1 : 1)
 
     const tbody = document.querySelector('.children-table tbody')
     const rowTemplate = document.querySelector('#node-row')
@@ -145,22 +173,29 @@
 
     document.querySelector('#metanet-node').style.display = 'block'
 
+    displayReadme(children)
+    displayMoneyButton(children)
+  }
+
+  async function displayReadme(children) {
     // Check for readme.md and display
     const readme = children.find(c => c.name.toLowerCase() == 'readme.md')
     if (readme) {
       // Get the readme data
-      const md = await getFileData(readme.nodeTxId)
+      const md = fromHex(await getFileData(readme.nodeTxId))
       showdown.setFlavor('github')
       const converter = new showdown.Converter()
       document.querySelector('#readme').innerHTML = converter.makeHtml(md)
       document.querySelector('#readme').style.display = 'block'
     }
+  }
 
+  async function displayMoneyButton(children) {
     // Check for bsvpush.json
     const bsvpushData = children.find(c => c.name.toLowerCase() == 'bsvpush.json')
     if (bsvpushData) {
       // Get the json file
-      const json = await getFileData(bsvpushData.nodeTxId)
+      const json = fromHex(await getFileData(bsvpushData.nodeTxId))
       const data = JSON.parse(json)
       if (data.sponsor) {
         // Create a moneybutton
@@ -170,7 +205,7 @@
           currency: "USD",
           label: "Tip",
           clientIdentifier: "3fb24dea420791729b4d9b39703c6339",
-          buttonId: metanetNode.nodeTxId,
+          buttonId: bsvpushData.nodeTxId,
           buttonData: "{}",
           type: "tip",
           editable: true
@@ -178,31 +213,44 @@
         moneyButton.render(moneyButtonDiv, Object.assign(defaults, data.sponsor))
       }
     }
+  }
 
+  async function displayFile(metanetNode) {
     // If this is a B:// file then get the data and display it
     if (metanetNode.nodeType == '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut') {
       const fileData = await getFileData(metanetNode.nodeTxId)
-      const textNode = document.createTextNode(fileData)
-      document.querySelector('pre#text').appendChild(textNode)
+      const imgFileExts = ['.png', '.gif', '.jpg', '.jpeg']
+      console.log('metanode name: ' + metanetNode.name)
+      if (imgFileExts.find(e => metanetNode.name.endsWith(e))){
+        console.log('img data')
+        // Image
+        const bytes = hexToUint8Array(fileData)
+        const blob = new Blob([bytes])
+        const url = URL.createObjectURL(blob)
+        document.querySelector('#img-data').src = url
+        document.querySelector('#img-data-container').style.display = 'block'
+      } else {
+        console.log('text data')
+        // Text
+        const textData = fromHex(fileData)
+        const textNode = document.createTextNode(textData)
+        document.querySelector('pre#text').appendChild(textNode)
+        hljs.highlightBlock(document.querySelector('div#file-data'));
+        document.querySelector('pre#text').style.display = 'block'
+      }
       document.querySelector('div#file-data').style.display = 'block'
-      hljs.highlightBlock(document.querySelector('div#file-data'));
     }
-
-    document.querySelector('#spinner').style.display = 'none'
   }
 
-  const metanetApiUrl = 'https://codeonchain.network'
   const bFileType = '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut'
 
   /**
    * Creates an object representing a metanet node from a transaction.
    * Will interpret B files.
    * @param {*} txid 
-   * @returns {txid, publicKey, parentTx, type, data, mediaType, encoding, name, parts}
+   * @returns 
    */
   async function getMetanetNode(txid) {
-    //return (await (await fetch(metanetApiUrl + '/tx/' + txid)).json())
-
     const query = {
       "q": {
           "find": {
@@ -247,8 +295,6 @@
   };
 
   async function getChildNodes(txid) {
-    //return (await (await fetch(metanetApiUrl + '/tx/' + node_txid + '/children')).json()).children
-
     const query = {
       "q": {
           "find": {
@@ -308,7 +354,7 @@
 
       if (metanetNode.type == '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut') {
         // Interpret B file
-        metanetNode.data = fromHex(metanetNode.parts[5])
+        metanetNode.data = metanetNode.parts[5]
         metanetNode.mediaType = fromHex(metanetNode.parts[6])
         metanetNode.encoding = fromHex(metanetNode.parts[7])
         metanetNode.name = fromHex(metanetNode.parts[8])
@@ -365,23 +411,6 @@
     return parts
   }
 
-  function repos() {
-    return [
-      {
-        name: 'bcat-client-video-stream',
-        description: 'Play bcat videos in the browser',
-        txid: 'a508bb614add6a66ba14b05794c9ae98afb34675a26d591dced88221c5ca4d03',
-        tip: 'jolon@moneybutton.com'
-      },
-      {
-        name: 'bsvpush',
-        description: 'Push code repositories to BSV',
-        txid: '73fc317c548676f5c082c9381fbbcbd64cbfb7d0838c15b5964dd5dabb53e50a',
-        tip: 'jolon@moneybutton.com'
-      },
-    ]
-  }
-
   // https://stackoverflow.com/questions/21647928/javascript-unicode-string-to-hex
   function fromHex(hex){
     let str
@@ -408,6 +437,20 @@
         console.log('toHex: Invalid text input: ' + str)
     }
     return hex
+  }
+
+  /**
+   * Hex string to bytes.
+   * @param {*} hex 
+   */
+  function hexToUint8Array(hex) {
+    const bytes = new Uint8Array(hex.length / 2)
+
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = parseInt(hex[i * 2] + hex[i * 2 + 1], 16)
+    }
+
+    return bytes
   }
 
 })()
