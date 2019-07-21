@@ -8,7 +8,7 @@ Be careful using bsvpush as once your files are on the blockchain they can't be 
 # Install
 
 ```
-npm install bsvpush
+npm install -g bsvpush
 ```
 
 # Usage
