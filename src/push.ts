@@ -79,6 +79,10 @@ export class Push {
     return this._ignoreList;
   }
 
+  ignore(file: string): boolean {
+    return this.ignoreList.some(ignoreExp => ignoreExp == file);
+  }
+
   /**
    * Creates any directories and files used by bsvpush if they don't already exist.
    * .bsvpush
@@ -93,17 +97,21 @@ export class Push {
   init() {
     let bsvignore = path.join(process.cwd(), '.bsvignore');
     if (!fs.existsSync(bsvignore)) {
-      const contents = `.bsvpush`;
+      console.log(`Creating: ${bsvignore}`)
+      const contents = `.bsvpush
+.git`;
       fs.writeFileSync(bsvignore, contents);
     }
 
     let bsvpushDir = path.join(process.cwd(), '.bsvpush');
     if (!fs.existsSync(bsvpushDir)) {
+      console.log(`Creating: ${bsvpushDir}`)
       fs.mkdirSync(bsvpushDir);
     }
 
     let metanet = path.join(bsvpushDir, 'metanet.json');
     if (!fs.existsSync(metanet)) {
+      console.log(`Creating: ${metanet}`)
       const masterKey = bsv.HDPrivateKey();
       let json = {
         masterKey: masterKey.xprivkey,
@@ -118,6 +126,7 @@ export class Push {
 
     let bsvpush = path.join(process.cwd(), 'bsvpush.json');
     if (!fs.existsSync(bsvpush)) {
+      console.log(`Creating: ${bsvpush}`)
       let json = {
         name: "",
         owner: "",
@@ -130,11 +139,13 @@ export class Push {
     
     let bsvpushHomeDir = path.join(process.env.HOME, '.bsvpush');
     if (!fs.existsSync(bsvpushHomeDir)) {
+      console.log(`Creating: ${bsvpushHomeDir}`)
       fs.mkdirSync(bsvpushHomeDir);
     }
 
     let fundingKey = path.join(bsvpushHomeDir, 'funding_key');
     if (!fs.existsSync(fundingKey)) {
+      console.log(`Creating: ${fundingKey}`)
       let json = {
         xprv: '',
         derivationPath: 'm/0/0'
@@ -144,6 +155,7 @@ export class Push {
 
     // Add .bsvpush directory to .gitignore
     // This is a safety measure as .bsvpush contains the master private key
+    console.log(`Adding .bsvpush to .gitignore`)
     let gitIgnore = path.join(process.cwd(), '.gitignore');
     if (!fs.existsSync(gitIgnore)) {
       fs.writeFileSync(gitIgnore, ".bsvpush");
@@ -152,8 +164,33 @@ export class Push {
     }
   }
 
-  ignore(file: string): boolean {
-    return this.ignoreList.some(ignoreExp => ignoreExp == file);
+  /**
+   * Ensure all required files exist, if not exit.
+   */
+  preflight() {
+    const paths = [
+      path.join(process.env.HOME, '.bsvpush'),
+      path.join(process.env.HOME, '.bsvpush', 'funding_key'),
+      path.join(process.cwd(), '.bsvpush'),
+      path.join(process.cwd(), '.bsvpush', 'metanet.json'),
+      path.join(process.cwd(), '.bsvignore'),
+      path.join(process.cwd(), 'bsvpush.json')
+    ];
+
+    const pathsDontExist = [];
+
+    paths.forEach(p => {
+      if (!fs.existsSync(p)) {
+        pathsDontExist.push(p);
+      }
+    });
+    if (pathsDontExist.length > 0) {
+      const s = pathsDontExist.length > 1 ? 's' : '';
+      console.log(`Cannot find the following file${s}: `);
+      pathsDontExist.forEach(p => console.log(`\t${p}`));
+      console.log(`Run: bsvpush init`);
+      process.exit(1);
+    }
   }
 
   /**
@@ -161,6 +198,9 @@ export class Push {
    * Asks the user before sending the transactions.
    */
   async push() {
+    // Ensure config files exist
+    this.preflight();
+
     const fees = this.generateScripts(process.cwd(), this.metanetCache.root, null);
 
     const fundingTx = await this.fundingTransaction(fees);

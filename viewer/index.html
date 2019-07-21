@@ -1,0 +1,110 @@
+<!doctype html>
+
+<html>
+
+  <head>
+    <title>Codeonchain</title>
+    <meta name="viewport" content="width=device-width">
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    <link rel="stylesheet" href="style.css">
+    <script src="js/viewer.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.9.0/showdown.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.8/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.8/highlight.min.js"></script>
+    <script src="https://www.moneybutton.com/moneybutton.js"></script>
+  </head>
+
+  <body>
+    <div id='banner'>
+      <span id='title'>
+        <a id="title" href="https://codeonchain.network"><span class='code'>Code</span><span class='on'>on</span><span class='chain'>chain</span></a>
+      </span>
+      <span id='upload'>Upload a repository to metanet using <a href="https://github.com/jolonf/bsvpush">bsvpush</a></span>
+    </div>
+
+    <div id='content'></div>
+
+    <div id='metanet-node'>
+      <div id='node-banner'>
+        <div id='node-banner-display'>
+          <div id='node-title'>
+            <div id='node-name'><a href="" id='parent-back'>&lt;</a> <span id='node-name'></span> </div>
+            <div id='node-txid'>
+                <span id='node-publickey'></span><br>
+                <span id='node-txid'></span>
+            </div>
+          </div>
+          <div id='money-button-container'>
+            <div id='node-money-button'></div>
+          </div>
+        </div>
+      </div>
+
+      <table class="children-table">
+        <tbody>
+          <template id="node-row">
+            <tr>
+              <td class="name"><a href=""></a></td>
+              <td class="txid"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+
+      <div id='clone-container'>
+          <div id='clone'>
+            Clone using <a href="https://github.com/jolonf/bsvpush">bsvpush</a>: <input type='text' readonly value=''>
+          </div>
+      </div>
+  
+    </div>
+
+
+    <div id="repos">
+      <div id="repos-tabs">
+        <div id="featured-tab" class='tab tab-selected'>
+          <a href='javascript:void(0)'>Featured</a>
+        </div>
+        <div id="recent-tab" class='tab'>
+          <a href='javascript:void(0)'>Recent</a>
+        </div>
+      </div>
+      <table class="repos-table">
+<!--        <thead>
+          <tr>
+            <td>Name</td>
+            <td>Description</td>
+            <td>Tx</td>
+            <td>Tip</td>
+          </tr>
+        </thead> -->
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+
+    <template id="repo-row">
+      <tr>
+        <td class="name"><a href=""></a></td>
+        <td class="description"></td>
+        <td class="txid"></td>
+        <td class="tip">
+          <div id='money-button-container'>
+            <div id='node-money-button'></div>
+          </div>    
+        </td>
+      </tr>
+    </template>
+
+    <div id="readme">
+
+    </div>
+
+    <div id="file-data">
+      <pre id="text"></pre>
+    </div>
+
+    <div id="spinner"><img width="100" height="100" src="img/spinner.svg"></div>
+    <div id="footer-message"><p>metanet</p></div>
+  </body>
+</html>
