@@ -32,6 +32,7 @@
   async function displayFeatured() {
     const featuredTransactions = [
       '546d70c4de9324e9368ee92720ccbdc43c86332ac2677782b992d61d158bcfd0',
+      'a3663b6d8ef3d9b49e29152b60c5cadd9e2e673d90c12e029918028582fa3a17',
       'a508bb614add6a66ba14b05794c9ae98afb34675a26d591dced88221c5ca4d03'
     ]
     displayRepos(featuredTransactions)

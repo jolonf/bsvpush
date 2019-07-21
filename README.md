@@ -13,7 +13,7 @@ npm install -g bsvpush
 
 # Usage
 
-## Clone
+## clone
 To clone an existing repository, use the transaction id of the root parent node of the repository:
 
 ```
@@ -22,7 +22,7 @@ bsvpush clone a508bb614add6a66ba14b05794c9ae98afb34675a26d591dced88221c5ca4d03
 
 Find and view repositories at [codeonchain.network](https://codeonchain.network).
 
-## Init
+## init
 
 Before pushing a repository you must run ```bsvpush init``` in the root directory of the project to create several files and directories:
 
@@ -78,7 +78,7 @@ Be very careful about what you upload to the blockchain. Bsvpush will list all f
 
 The properties should be self explanatory. The ```sponsor``` property is used to create a moneybutton. The properties of the ```sponsor``` property should be compatible with moneybutton and should be able to be applied directly to the moneybutton configuration object. This allows for more complex transactions such as sending to multiple accounts, which can be used to support projects that your project may rely on.
 
-## Push
+## push
 
 To begin the upload run:
 
@@ -90,3 +90,25 @@ Bsvpush will first navigate the directory structure, ignoring any files that mat
 
 If you enter ```Y```, bsvpush will first fund all of the transactions. This will be performed using a single transaction which will have many outputs, one for each transaction required for each metanet node. Bsvpush will wait until the funding transaction has been confirmed. This will take several minutes. Once it is confirmed it will send through all of the individual transactions. Bsvpush will not wait for these to be confirmed. The transaction ids will be listed as they are sent and you can view them in [codeonchain.network](https://codeonchain.network).
 
+## metanet.json
+
+```bsvpush init``` creates a file in the current directory ```.bsvpush/metanet.json``` which contains the master private key for the metanet tree (this is not the funding key). You will need this key to make future updates to the tree. Note that at this stage bsvpush always creates an entirely new tree structure even if files haven't changed. In the future bsvpush will store file hashs in the transactions and only upload files that have changed. To be able to reuse existing non-leaf nodes, the private key of the parent is required. The master private key along with the derivation paths are stored in ```metanet.json``` to allow existing nodes to be identified and new children to be added to existing nodes. Note that the functionality to add children to existing nodes is not currently implemented, a new tree is always created, however the new nodes will have the same metanet public key addresses as they will use the same derivation path but with new transactions. After pushing a repo, bsvpush will update ```metanet.json``` with the correct derivation paths. Below is an excerpt from a ```metanet.json``` (with xprv removed):
+
+```json
+{
+  "masterKey": "xprv...",
+  "root": {
+    "keyPath": "m/0",
+    "txId": "546d70c4de9324e9368ee92720ccbdc43c86332ac2677782b992d61d158bcfd0",
+    "index": 0,
+    "name": "bsvpush",
+    "children": {
+      ".bsvignore": {
+        "keyPath": "m/0/0",
+        "txId": "479a2319d3ba8104a378e1aceee9fa58a38069d91ee91a406360ef3d11a97838",
+        "index": 0,
+        "name": ".bsvignore",
+        "removed": false,
+        "children": {}
+      },
+```
