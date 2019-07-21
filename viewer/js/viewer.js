@@ -82,7 +82,8 @@
         nodeKey: metanet.parent.a,
         name: bsvpushJson.name,
         description: bsvpushJson.description,
-        sponsor: bsvpushJson.sponsor
+        sponsor: bsvpushJson.sponsor,
+        version: bsvpushJson.version
       }
       nodes.push(metanetNode)
     }
@@ -101,6 +102,7 @@
       row.querySelector('.name a').textContent = node.name
       row.querySelector('.name a').setAttribute('href', '?tx=' + node.nodeTxId)
       row.querySelector('.description').textContent = node.description
+      row.querySelector('.version').textContent = node.version
       tbody.appendChild(row)
 
       // Create a moneybutton, use tr:last-child as moneybutton needs an element, whereas row is a DocumentFragment
@@ -200,6 +202,9 @@
       // Get the json file
       const json = fromHex(await getFileData(bsvpushData.nodeTxId))
       const data = JSON.parse(json)
+      if (data.version) {
+        document.querySelector('#node-version').textContent = data.version
+      }
       if (data.sponsor) {
         // Create a moneybutton
         const moneyButtonDiv = document.querySelector('#node-money-button')

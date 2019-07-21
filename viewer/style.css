@@ -187,6 +187,11 @@ div#node-name {
   font-size: 1.2em;
 }
 
+#node-version {
+  font-family: monospace;
+  color: grey;
+}
+
 div#node-txid, div#node-publickey {
   padding-top: 10px;
   padding-bottom: 20px;
