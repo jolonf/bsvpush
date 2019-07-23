@@ -47,14 +47,14 @@
       "q": {
           "limit": 50,
           "find": {
-              "out.s8": 'bsvpush.json'
+              "out.s8": "bsvpush.json"
           },
           "sort": {
             "blk.i": -1
           },
           "project": {
               "node": 1,
-              "out": 1,
+              "out.s3": 1,
               "out.s4": 1,
               "out.s5": 1,
               "out.s8": 1,
@@ -73,12 +73,12 @@
     const url = "https://metanaria.planaria.network/q/" + b64
     const response = await fetch(url, { headers: { key: '1DzNX2LzKrmoyYVyqMG46LLknzSd7TUYYP' } })
     const json = await response.json()
-    
+
     let nodes = []
 
     for (const metanet of json.metanet) { 
       const bsvpushJson = JSON.parse(metanet.out[0].s5)
-      if (!bsvpushJson.hidden) {
+      if (!bsvpushJson.hidden && metanet.parent) {
         metanetNode = {
           nodeTxId: metanet.parent.tx,
           nodeKey: metanet.parent.a,
@@ -153,7 +153,7 @@
     document.querySelector('span#node-txid').innerHTML = metanetNode.nodeTxId
     document.querySelector('span#node-publickey').innerHTML = metanetNode.nodeKey
 
-    if (metanetNode.parentTxId) {
+    if (metanetNode.parentTxId && metanetNode.parentTxId != 'NULL') {
       document.querySelector('a#parent-back').setAttribute('href', '?tx=' + metanetNode.parentTxId)
       document.querySelector('a#parent-back').style.display = 'inline'
     }
@@ -270,14 +270,14 @@
     const query = {
       "q": {
           "find": {
-              "node.tx": txid
+              "tx.h": txid
           },
           "project": {
-              "node": 1,
               "out": 1,
-              "out.s4": 1,
-              "out.s8": 1,
-              "parent": 1
+              "out.s2": 1, // Node address
+              "out.s3": 1, // Parent tx
+              "out.s4": 1, // B File protocol
+              "out.s8": 1, // File name
           }
       }
     }
@@ -293,7 +293,7 @@
       const metanet =  json.metanet[0]
       metanetNode = {
         nodeTxId: txid,
-        nodeKey: metanet.node.a,
+        nodeKey: metanet.out[0].s2,
         nodeType: metanet.out[0].s4,
         name: metanet.out[0].s8,
       }
@@ -302,11 +302,7 @@
       } else {
         metanetNode.name = metanet.out[0].s4
       }
-      console.log('metanet parent: ' + metanet.parent)
-      if (metanet.parent) {
-        metanetNode.parentTxId = metanet.parent.tx
-        metanetNode.parentKey = metanet.parent.a
-      }
+      metanetNode.parentTxId = metanet.out[0].s3
     }
     return metanetNode;
   };
@@ -315,13 +311,13 @@
     const query = {
       "q": {
           "find": {
-              "parent.tx": txid
+              "out.s3": txid // Parent tx
           },
           "project": {
-              "node": 1,
+              "tx.h": 1,
               "out": 1,
-              "out.s4": 1,
-              "out.s8": 1
+              "out.s4": 1, // B File protocol
+              "out.s8": 1 // File name
           }
       }
     }
@@ -335,8 +331,8 @@
 
     for (const metanet of json.metanet) { 
       metanetNode = {
-        nodeTxId: metanet.node.tx,
-        nodeKey: metanet.node.a,
+        nodeTxId: metanet.tx.h,
+        /*nodeKey: metanet.node.a,*/
         nodeType: metanet.out[0].s4,
         name: metanet.out[0].s8,
       }
