@@ -226,8 +226,6 @@ export class Push {
         console.log(response);
         process.exit(1);
       }
-      await this.waitForConfirmation(fundingTx.id);
-      //await this.waitForParentUTXOs(fees);
       await this.sendMetanetTransactions(fundingTx, null, this.metanetCache.root);
       fs.writeFileSync(path.join(process.cwd(), '.bsvpush', 'metanet.json'), JSON.stringify(this.metanetCache.toJSON(), null, 2));
       console.log(`\nRepository uploaded, view at: https://codeonchain.network?tx=${fundingTx.id}`);
@@ -492,18 +490,12 @@ export class Push {
    */
   async metanetTransaction(fundingTx, parent: MetanetNode, node: MetanetNode) {
     const parentKey = this.metanetCache.masterKey.deriveChild(parent.keyPath);
-    const utxo = await this.findUtxo(parentKey.publicKey.toAddress().toString(), fundingTx.id, node.voutIndex);
-    if (!utxo) {
-      console.log(`Could not find a UTXO for key: ${parentKey.publicKey.toAddress().toString()}, txid: ${fundingTx.id}, vout: ${node.voutIndex}`);
-      process.exit(1);
+    let utxo = null;
+    while (!(utxo = await this.findUtxo(parentKey.publicKey.toAddress().toString(), fundingTx.id, node.voutIndex))) {
+      console.log(`Waiting for UTXO for key: ${parentKey.publicKey.toAddress().toString()}, txid: ${fundingTx.id}, vout: ${node.voutIndex}`);
+      await this.sleep(1000);
     }
-    /*const utxos = [bsv.Transaction.UnspentOutput({
-        address: parentKey.publicKey.toAddress().toString(),
-        txId: fundingTx.id,
-        outputIndex: voutIndex,
-        satoshis: node.fee,
-        scriptPubKey: fundingTx.outputs[voutIndex].script.toHex()
-      })];*/
+
     const utxos = [utxo];
 
     // Patch in the parent's transaction id into the script which wasn't known when
@@ -533,41 +525,6 @@ export class Push {
       satoshis: 5000000000,
       scriptPubKey: '21034b2edef6108e596efb2955f796aa807451546025025833e555b6f9b433a4a146ac'
     });
-  }
-
-  filterUTXOs(utxos, satoshisRequired) {
-    let total = 0;
-    const res = utxos.filter((utxo, i) => {
-      if (total < satoshisRequired) {
-        total += utxo.satoshis;
-        return true;
-      }
-      return false;
-    });
-
-    if (total < satoshisRequired) {
-      throw new Error(`Insufficient funds (need ${satoshisRequired} satoshis, have ${total})`);
-    }
-
-    return res;
-  }
-
-  /**
-   * Finds a single exact match UTXO for satoshisRequired and removes it from the utxos array.
-   * @param utxos
-   * @param satoshisRequired
-   */
-  filterUtxosExact(utxos, satoshisRequired) {
-    const index = utxos.findIndex(utxo => utxo.satoshis == satoshisRequired);
-    const utxo = utxos[index];
-    // Remove utxo
-    utxos.splice(index, 1);
-
-    if (!utxo) {
-      throw new Error(`Could not find a parent UTXO with the exact satoshis required (need ${satoshisRequired} satoshis)`);
-    }
-
-    return utxo;
   }
 
   sleep(ms) {
