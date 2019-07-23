@@ -72,11 +72,14 @@ Be very careful about what you upload to the blockchain. Bsvpush will list all f
   "sponsor": {
     "to": "jolon@moneybutton.com"
   },
-  "version": "0.0.1"
+  "version": "0.0.1",
+  "hidden": false
 }
 ```
 
-The properties should be self explanatory. The ```sponsor``` property is used to create a moneybutton. The properties of the ```sponsor``` property should be compatible with moneybutton and should be able to be applied directly to the moneybutton configuration object. This allows for more complex transactions such as sending to multiple accounts, which can be used to support projects that your project may rely on.
+The ```sponsor``` property is used to create a moneybutton. The properties of the ```sponsor``` property should be compatible with moneybutton and should be able to be applied directly to the moneybutton configuration object. This allows for more complex transactions such as sending to multiple accounts, which can be used to support projects that your project may rely on.
+
+If the ```hidden``` property is set to ```true```, [codeonchain.network](https://codeonchain.network) won't include the repository in any of its listings. The repository will be viewable if provided with a direct link to the transaction. 
 
 ## push
 
@@ -88,7 +91,7 @@ bsvpush push
 
 Bsvpush will first navigate the directory structure, ignoring any files that match the files listed in ```.bsvignore```, and estimate the fees for each file. Before uploading it will provide an overall funding estimate so that you can ensure you have the funds in your funding wallet. Bsvpush will confirm with you before sending any transactions.
 
-If you enter ```Y```, bsvpush will first fund all of the transactions. This will be performed using a single transaction which will have many outputs, one for each transaction required for each metanet node. Bsvpush will wait until the funding transaction has been confirmed. This will take several minutes. Once it is confirmed it will send through all of the individual transactions. Bsvpush will not wait for these to be confirmed. The transaction ids will be listed as they are sent and you can view them in [codeonchain.network](https://codeonchain.network).
+If you enter ```Y```, bsvpush will first fund all of the transactions. This will be performed using a single transaction which will have many outputs, one for each transaction required for each metanet node. Next bsvpush will send through all of the individual transactions. The transaction ids will be listed as they are sent and you can view them in [codeonchain.network](https://codeonchain.network).
 
 ## metanet.json
 
