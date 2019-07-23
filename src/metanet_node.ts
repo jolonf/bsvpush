@@ -1,4 +1,4 @@
-const bsv = require('bsv')
+const bsv = require('bsv');
 
 /**
  * Represents a metanet directory or file.
@@ -16,7 +16,7 @@ export class MetanetNode {
   dir = ''; // this is used solely for displaying to the user
   fee = 0;
   opreturn = []; // Array of hex strings
-  utxos = []; // UTXOs for this private key, will be used to create new children
+  voutIndex = 0; // vout index in the funding transaction for the parent for this transaction
 
   constructor(json: any = null) {
     if (json !== null) {
@@ -35,7 +35,7 @@ export class MetanetNode {
   }
 
   toJSON(): any {
-    let json = {
+    const json = {
       keyPath: this.keyPath,
       txId: this.txId.toString(),
       index: this.index,
@@ -54,7 +54,7 @@ export class MetanetNode {
 
   /**
    * Gets child node with specified name. If the child doesn't exist, creates it.
-   * @param name 
+   * @param name
    */
   child(name: string): MetanetNode {
       return this.children[name];
@@ -62,7 +62,7 @@ export class MetanetNode {
 
   /**
    * Adds a child with the specified name.
-   * @param name 
+   * @param name
    */
   addChild(name: string): MetanetNode {
     const child = new MetanetNode();
@@ -85,12 +85,12 @@ export class MetanetNode {
    * Finds the next available child index.
    */
   nextIndex(): number {
-    const keys = Object.keys(this.children)
+    const keys = Object.keys(this.children);
     if (keys.length > 0) {
-        let maxIndexKey = keys.reduce((a, b) => this.children[a].index > this.children[b].index ? a : b)
-        return this.children[maxIndexKey].index + 1
+        const maxIndexKey = keys.reduce((a, b) => this.children[a].index > this.children[b].index ? a : b);
+        return this.children[maxIndexKey].index + 1;
     } else {
-      return 0
+      return 0;
     }
   }
 }

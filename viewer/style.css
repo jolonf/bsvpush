@@ -294,7 +294,7 @@ div#file-data {
 }
 
 #img-data {
-  width: 32px;
+  max-width: 980px;
 }
 
 pre#text {

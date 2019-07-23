@@ -11,7 +11,7 @@ export class MetanetCache {
   root: MetanetNode;
 
   constructor(json: any) {
-    this.fromJSON(json)
+    this.fromJSON(json);
   }
 
   fromJSON(json: any) {
@@ -23,7 +23,7 @@ export class MetanetCache {
     const json = {
       masterKey: this.masterKey.xprivkey,
       root: this.root.toJSON()
-    }
+    };
     return json;
   }
 }

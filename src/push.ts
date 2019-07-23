@@ -18,7 +18,7 @@ export class Push {
   fee = 400;
   feeb = 1.1;
   minimumOutputValue = 546;
-  
+
   private _packageInfo;
   get packageInfo() {
     if (!this._packageInfo) {
@@ -65,7 +65,7 @@ export class Push {
     return this._fundingKey;
   }
 
-  private _ignoreList: Array<string>;
+  private _ignoreList: string[];
   get ignoreList() {
     if (!this._ignoreList) {
       const ignorePath = path.join(process.cwd(), '.bsvignore');
@@ -80,7 +80,7 @@ export class Push {
   }
 
   ignore(file: string): boolean {
-    return this.ignoreList.some(ignoreExp => ignoreExp == file);
+    return this.ignoreList.some(ignoreExp => ignoreExp === file);
   }
 
   /**
@@ -90,30 +90,30 @@ export class Push {
    * .bsvpush.json
    * HOME/.bsvpush
    * HOME/.bsvpush/funding_key
-   * 
+   *
    * Appends .bsvpush directory to .gitignore as a safety measure, as .bsvpush/metanet.json
    * includes the metanet master private key.
    */
   init() {
-    let bsvignore = path.join(process.cwd(), '.bsvignore');
+    const bsvignore = path.join(process.cwd(), '.bsvignore');
     if (!fs.existsSync(bsvignore)) {
-      console.log(`Creating: ${bsvignore}`)
+      console.log(`Creating: ${bsvignore}`);
       const contents = `.bsvpush
 .git`;
       fs.writeFileSync(bsvignore, contents);
     }
 
-    let bsvpushDir = path.join(process.cwd(), '.bsvpush');
+    const bsvpushDir = path.join(process.cwd(), '.bsvpush');
     if (!fs.existsSync(bsvpushDir)) {
-      console.log(`Creating: ${bsvpushDir}`)
+      console.log(`Creating: ${bsvpushDir}`);
       fs.mkdirSync(bsvpushDir);
     }
 
-    let metanet = path.join(bsvpushDir, 'metanet.json');
+    const metanet = path.join(bsvpushDir, 'metanet.json');
     if (!fs.existsSync(metanet)) {
-      console.log(`Creating: ${metanet}`)
+      console.log(`Creating: ${metanet}`);
       const masterKey = bsv.HDPrivateKey();
-      let json = {
+      const json = {
         masterKey: masterKey.xprivkey,
         root: {
           keyPath: 'm/0',
@@ -124,29 +124,30 @@ export class Push {
       fs.writeFileSync(metanet, JSON.stringify(json, null, 2));
     }
 
-    let bsvpush = path.join(process.cwd(), 'bsvpush.json');
+    const bsvpush = path.join(process.cwd(), 'bsvpush.json');
     if (!fs.existsSync(bsvpush)) {
-      console.log(`Creating: ${bsvpush}`)
-      let json = {
+      console.log(`Creating: ${bsvpush}`);
+      const json = {
         name: "",
         owner: "",
         description: "",
         sponsor: { to: "" },
-        version: ""
+        version: "",
+        hidden: false
       };
       fs.writeFileSync(bsvpush, JSON.stringify(json, null, 2));
     }
-    
-    let bsvpushHomeDir = path.join(process.env.HOME, '.bsvpush');
+
+    const bsvpushHomeDir = path.join(process.env.HOME, '.bsvpush');
     if (!fs.existsSync(bsvpushHomeDir)) {
-      console.log(`Creating: ${bsvpushHomeDir}`)
+      console.log(`Creating: ${bsvpushHomeDir}`);
       fs.mkdirSync(bsvpushHomeDir);
     }
 
-    let fundingKey = path.join(bsvpushHomeDir, 'funding_key');
+    const fundingKey = path.join(bsvpushHomeDir, 'funding_key');
     if (!fs.existsSync(fundingKey)) {
-      console.log(`Creating: ${fundingKey}`)
-      let json = {
+      console.log(`Creating: ${fundingKey}`);
+      const json = {
         xprv: '',
         derivationPath: 'm/0/0'
       };
@@ -155,8 +156,8 @@ export class Push {
 
     // Add .bsvpush directory to .gitignore
     // This is a safety measure as .bsvpush contains the master private key
-    console.log(`Adding .bsvpush to .gitignore`)
-    let gitIgnore = path.join(process.cwd(), '.gitignore');
+    console.log(`Adding .bsvpush to .gitignore`);
+    const gitIgnore = path.join(process.cwd(), '.gitignore');
     if (!fs.existsSync(gitIgnore)) {
       fs.writeFileSync(gitIgnore, ".bsvpush");
     } else {
@@ -203,27 +204,33 @@ export class Push {
 
     const fees = this.generateScripts(process.cwd(), this.metanetCache.root, null);
 
-    const fundingTx = await this.fundingTransaction(fees);
+    const fundingTx = await this.fundingTransaction(fees, this.metanetCache.root);
 
-    const metanetFees = fees.map(entry => entry.fee).reduce((sum, fee) => sum + fee);
+    const metanetFees = fees.reduce((sum, entry) => sum + entry.fee, 0);
     const fundingTxFee = Math.max(Math.ceil(fundingTx._estimateSize() * this.feeb), this.minimumOutputValue);
-    const totalFee = metanetFees + this.metanetCache.root.fee + fundingTxFee;
+    const totalFee = metanetFees + fundingTxFee;
 
     console.log(`Metanet fees will be: ${this.feeToString(metanetFees)}`);
-    console.log(`Metanet root node fee will be: ${this.feeToString(this.metanetCache.root.fee)}`);
     console.log(`Funding transaction fee will be: ${this.feeToString(fundingTxFee)}`);
     console.log(`Total: ${this.feeToString(totalFee)}`);
 
     const rlp = readline.createInterface({input: process.stdin, output: process.stdout});
-    const response = await rlp.questionAsync(`Continue (Y/n)?`);
+    const input = await rlp.questionAsync(`Continue (Y/n)?`);
     rlp.close();
 
-    if (response !== 'n' && response !== 'N') {
+    if (input !== 'n' && input !== 'N') {
       console.log(`Sending funding transaction: ${fundingTx.id}`);
       const response = await bitindex.tx.send(fundingTx.toString());
+      if (!response.txid) {
+        console.log('Error sending funding transaction.');
+        console.log(response);
+        process.exit(1);
+      }
       await this.waitForConfirmation(fundingTx.id);
-      await this.sendMetanetTransactions(null, this.metanetCache.root);
+      //await this.waitForParentUTXOs(fees);
+      await this.sendMetanetTransactions(fundingTx, null, this.metanetCache.root);
       fs.writeFileSync(path.join(process.cwd(), '.bsvpush', 'metanet.json'), JSON.stringify(this.metanetCache.toJSON(), null, 2));
+      console.log(`\nRepository uploaded, view at: https://codeonchain.network?tx=${fundingTx.id}`);
     }
   }
 
@@ -242,14 +249,14 @@ export class Push {
     this.dirScript(node, parent); // Stage this node as a directory, then process children
     this.estimateFee(node);
     console.log(`[${node.keyPath}] ${dir} (${node.fee} satoshis)`);
-    
+
     // Root node is not included in the split funding transaction as it is funded directly
     // from the funding key
     if (parent) {
       fees.push({parentKeyPath: parent.keyPath, fee: node.fee});
     }
 
-    let files = fs.readdirSync(dir, {withFileTypes: true});
+    const files = fs.readdirSync(dir, {withFileTypes: true});
     for (const file of files) {
       if (!this.ignore(file.name)) {
         if (file.isDirectory()) {
@@ -258,16 +265,18 @@ export class Push {
             child = node.addChild(file.name);
           }
           child.dir = dir;
+          child.voutIndex = fees.length + 1;
           this.generateScripts(path.join(dir, file.name), child, node, fees);
         } else {
           const child = this.fileScript(dir, file.name, node);
+          child.voutIndex = fees.length + 1;
           this.estimateFee(child);
           fees.push({parentKeyPath: node.keyPath, fee: child.fee});
           console.log(`[${child.keyPath}] ${dir}/${child.name} (${child.fee} satoshis)`);
         }
       } else {
         // If the file is ignored but appears as a child then mark it for removal
-        let child = node.child(file.name);
+        const child = node.child(file.name);
         if (child && !child.removed) {
           child.remove();
         }
@@ -288,7 +297,7 @@ export class Push {
   }
 
   /**
-   * Create an OP RETURN script with the contents of the file. 
+   * Create an OP RETURN script with the contents of the file.
    * @param dir directory where the file is located (to be able to read from the file)
    * @param name name of the file
    * @param parent parent node
@@ -316,10 +325,10 @@ export class Push {
   /**
    * Creates a OP RETURN metanet header with the public key of the child
    * and the public key and transaction id of the parent node.
-   * @param parent 
-   * @param child 
+   * @param parent
+   * @param child
    */
-  opReturnMetaHeader(parent: MetanetNode, child: MetanetNode): Array<string> {
+  opReturnMetaHeader(parent: MetanetNode, child: MetanetNode): string[] {
     const childKey = this.metanetCache.masterKey.deriveChild(child.keyPath);
     const oprParts = new Array<string>();
     oprParts.push('OP_RETURN');
@@ -351,50 +360,116 @@ export class Push {
    * to be subsequently sent without waiting for the parent to confirm, only the funding transaction
    * must confirm, and then all of the metanet nodes transactions can be sent.
    * @param fees Array of {parentKeyPath, fee}, representing each metanet node, except for the root node
+   * @param root If the root is to be updated then pass it in and it will be an output of the funding tx
    */
-  async fundingTransaction(fees) {
-    const feeForMetanetNodes = fees.map(entry => entry.fee).reduce((sum, fee) => sum + fee);
-    let utxos = await bitindex.address.getUtxos(this.fundingKey.publicKey.toAddress().toString());
-    utxos = this.filterUTXOs(utxos, feeForMetanetNodes + this.fee);
+  async fundingTransaction(fees, root = null) {
+    const fundingPublicKeyAddress = this.fundingKey.publicKey.toAddress().toString();
+    const utxos = await bitindex.address.getUtxos(fundingPublicKeyAddress);
 
-    let tx = new bsv.Transaction()
+    if (utxos.length === 0) {
+      throw `No UTXOs available from funding key. Add new funds to: ${fundingPublicKeyAddress}`;
+    }
+
+    const tx = new bsv.Transaction()
       .from(utxos)
       .fee(this.fee)
       .change(this.fundingKey.publicKey.toAddress());
+
+    if (root) {
+      // Add root as first output
+      const script = bsv.Script.fromASM(root.opreturn.join(' '));
+      tx.addOutput(new bsv.Transaction.Output({ script: script.toString(), satoshis: 0 }));
+    }
 
     fees.forEach(entry => {
       const parentKey = this.metanetCache.masterKey.deriveChild(entry.parentKeyPath);
       tx.to(parentKey.publicKey.toAddress(), entry.fee);
     });
-    
+
     const thisFee = Math.ceil(tx._estimateSize() * this.feeb);
     tx.fee(thisFee);
     tx.sign(this.fundingKey.privateKey);
+
+    if (root) {
+      root.txId = tx.id;
+    }
 
     return tx;
   }
 
   /**
    * Sends the metanet transaction for the specified node and all of its children.
-   * @param node 
+   * @param node
+   * @param last is this the last child of the parent
+   * @returns the next voutIndex from the funding transaction
    */
-  async sendMetanetTransactions(parent: MetanetNode, node: MetanetNode) {
+  async sendMetanetTransactions(fundingTx, parent: MetanetNode, node: MetanetNode, last: boolean = true) {
     console.log(`[${node.keyPath}] ${node.dir}/${node.name}`);
 
-    const tx = await this.metanetTransaction(this.fundingKey, parent, node);
-
-    console.log(`Sending metanet transaction: ${tx.id}`);
-    const response = await bitindex.tx.send(tx.toString());
-    console.log(response);
-    //await this.sleep(1000); 
-
-    // Get UTXOs for this key which will be the parent key of the children to be sent next
-    const privateKey = this.metanetCache.masterKey.deriveChild(node.keyPath);
-    node.utxos = await bitindex.address.getUtxos(privateKey.publicKey.toAddress().toString());
-
-    for (const key of node.getUnremovedChildKeys()) {
-      await this.sendMetanetTransactions(node, node.children[key]);
+    // Don't send if root node, as it was already sent in the funding transaction
+    if (parent) {
+      const tx = await this.metanetTransaction(fundingTx, parent, node);
+      console.log(`\tSending metanet transaction: ${tx.id}`);
+      const response = await bitindex.tx.send(tx.toString());
+      if (!response.txid) {
+        console.log('Error sending transaction.');
+        console.log(response);
+        process.exit(1);
+      }
     }
+
+    const keys = node.getUnremovedChildKeys();
+    for (const key of keys) {
+      await this.sendMetanetTransactions(fundingTx, node, node.children[key], key === keys[keys.length - 1]);
+    }
+  }
+
+  /**
+   * Funding transaction has been sent, wait for UTXOs of all parents.
+   * @param fees
+   */
+/*  async waitForParentUTXOs(fees: object[]) {
+    // Group fees by parent
+    const feesByParent = this.groupBy(fees, 'parentKeyPath');
+    const keys = Object.keys(feesByParent);
+
+    let found = false;
+
+    while (!found) {
+      let utxoCount = 0;
+      for (const key of keys) {
+        // Get UTXOs
+        const privateKey = this.metanetCache.masterKey.deriveChild(key);
+        const utxos = await bitindex.address.getUtxos(privateKey.publicKey.toAddress().toString());
+        // Check if all UTXOs are satisfied
+        const parentFees = feesByParent[key];
+        try {
+          parentFees.forEach((fee) => {
+            this.filterUtxosExact(utxos, fee);
+            utxoCount++;
+          });
+        } catch (e) {
+          console.log(`[${utxoCount} / ${fees.length}] UTXOs ready`);
+          // Fee not found, try again
+          await this.sleep(1000);
+          continue;
+        }
+        found = true;
+      }
+    }
+
+  }*/
+
+  /**
+   * Groups the elements in the array by the element key.
+   * @param a
+   * @param key
+   */
+  groupBy(a: object[], key: string): object {
+    return a.reduce((result, element) => {
+      (result[element[key]] = result[element[key]] || []).push(element);
+      return result;
+    }, {});
   }
 
   async waitForConfirmation(txid: string) {
@@ -409,48 +484,45 @@ export class Push {
         process.stdout.write('.');
         await this.sleep(1000);
       }
-
-      //console.log(JSON.stringify(await bitindex.tx.get(txid), null, 2));
-
       console.log(`\nTransaction confirmed: ${txid}`);
   }
 
   /**
-   * Creates a metanet transaction and a funding transaction to fund the parent key
-   * but doesn't send either transaction. Both transactions are stored in the MetanetNode.
-   * https://github.com/bowstave/meta-writer/blob/master/index.js
+   * Creates a metanet transaction but doesn't send it.
    */
-  async metanetTransaction(fundingKey, parent: MetanetNode, node: MetanetNode) {
-    let utxos = [];
-    if (parent) {
-      // There should be a transaction output from the parent for every child with the exact fee
-      utxos = this.filterUtxosExact(parent.utxos, node.fee);
-    } else {
-      // The root node is funded directly from the funding key
-      utxos = await bitindex.address.getUtxos(fundingKey.publicKey.toAddress().toString());
-      utxos = this.filterUTXOs(utxos, node.fee);
+  async metanetTransaction(fundingTx, parent: MetanetNode, node: MetanetNode) {
+    const parentKey = this.metanetCache.masterKey.deriveChild(parent.keyPath);
+    const utxo = await this.findUtxo(parentKey.publicKey.toAddress().toString(), fundingTx.id, node.voutIndex);
+    if (!utxo) {
+      console.log(`Could not find a UTXO for key: ${parentKey.publicKey.toAddress().toString()}, txid: ${fundingTx.id}, vout: ${node.voutIndex}`);
+      process.exit(1);
     }
+    /*const utxos = [bsv.Transaction.UnspentOutput({
+        address: parentKey.publicKey.toAddress().toString(),
+        txId: fundingTx.id,
+        outputIndex: voutIndex,
+        satoshis: node.fee,
+        scriptPubKey: fundingTx.outputs[voutIndex].script.toHex()
+      })];*/
+    const utxos = [utxo];
 
     // Patch in the parent's transaction id into the script which wasn't known when
     // the script was generated
     const parentTxId = (parent === null ? 'NULL' : parent.txId);
     node.opreturn[3] = Buffer.from(parentTxId).toString('hex');
     const script = bsv.Script.fromASM(node.opreturn.join(' '));
- 
-    let metaTX = new bsv.Transaction().from(utxos);
+
+    const metaTX = new bsv.Transaction().from(utxos);
     metaTX.addOutput(new bsv.Transaction.Output({ script: script.toString(), satoshis: 0 }));
-  
-    if (!parent) {
-      metaTX.fee(node.fee);
-      metaTX.change(fundingKey.publicKey.toAddress());
-      metaTX.sign(fundingKey.privateKey);
-    } else {
-      metaTX.sign(this.metanetCache.masterKey.deriveChild(parent.keyPath).privateKey);
-    }
-
+    metaTX.fee(node.fee);
+    metaTX.sign(parentKey.privateKey);
     node.txId = metaTX.id;
-
     return metaTX;
+  }
+
+  async findUtxo(publicKey: string, txid: string, voutIndex: number) {
+    const utxos = await bitindex.address.getUtxos(publicKey);
+    return utxos.find(utxo => utxo.txid === txid && utxo.vout === voutIndex);
   }
 
   getDummyUTXO() {
@@ -472,38 +544,36 @@ export class Push {
       }
       return false;
     });
-  
+
     if (total < satoshisRequired) {
       throw new Error(`Insufficient funds (need ${satoshisRequired} satoshis, have ${total})`);
     }
-  
+
     return res;
   }
 
   /**
    * Finds a single exact match UTXO for satoshisRequired and removes it from the utxos array.
-   * @param utxos 
-   * @param satoshisRequired 
+   * @param utxos
+   * @param satoshisRequired
    */
   filterUtxosExact(utxos, satoshisRequired) {
-    let total = 0;
     const index = utxos.findIndex(utxo => utxo.satoshis == satoshisRequired);
     const utxo = utxos[index];
     // Remove utxo
     utxos.splice(index, 1);
-  
+
     if (!utxo) {
       throw new Error(`Could not find a parent UTXO with the exact satoshis required (need ${satoshisRequired} satoshis)`);
     }
-  
+
     return utxo;
   }
 
-
-  sleep(ms){
-    return new Promise(resolve=>{
-        setTimeout(resolve,ms)
-    })
+  sleep(ms) {
+    return new Promise(resolve => {
+        setTimeout(resolve, ms);
+    });
   }
 }
 

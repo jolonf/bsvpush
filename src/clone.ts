@@ -1,7 +1,7 @@
 import fs from 'fs';
+import fetch from 'node-fetch';
 import path from 'path';
 import readline from 'readline-promise';
-import fetch from 'node-fetch';
 
 import BitIndexSDK from 'bitindex-sdk';
 
@@ -10,19 +10,18 @@ import BitIndexSDK from 'bitindex-sdk';
  * Note that at this stage it doesn't create the .bsvpush directory or the metanet.json file.
  */
 export class Clone {
-  metanetApiUrl = 'http://localhost:3000';
   bFileType = '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut';
   bitindex = new BitIndexSDK();
 
   async clone(txid: string) {
     const node = await this.getMetanetNode(txid);
-    this.cloneRecursive(node, process.cwd());
+    await this.cloneRecursive(node, process.cwd());
   }
-  
+
   async cloneRecursive(node, dir) {
-    if (node.nodeType == this.bFileType) {
+    if (node.nodeType === this.bFileType) {
       const filePath = path.join(dir, node.name);
-      console.log(`Cloning file: ${filePath}`)
+      console.log(`Cloning file: ${filePath}`);
       const data = await this.getFileData(node.nodeTxId);
       fs.writeFileSync(filePath, data);
     } else {
@@ -34,14 +33,12 @@ export class Clone {
       // Get children
       const children = await this.getChildNodes(node.nodeTxId);
       for (const child of children) {
-        await this.cloneRecursive(child, newDir)
+        await this.cloneRecursive(child, newDir);
       }
     }
   }
 
   async getMetanetNode(txid: string) {
-    //return (await (await fetch(this.metanetApiUrl + '/tx/' + txid)).json())
-
     const query = {
       "q": {
           "find": {
@@ -55,14 +52,14 @@ export class Clone {
               "parent": 1
           }
       }
-    }
+    };
 
-    const b64 = Buffer.from(JSON.stringify(query)).toString('base64')
-    const url = "https://metanaria.planaria.network/q/" + b64
-    const response = await fetch(url, { headers: { key: '1DzNX2LzKrmoyYVyqMG46LLknzSd7TUYYP' } })
-    const json = await response.json()
+    const b64 = Buffer.from(JSON.stringify(query)).toString('base64');
+    const url = "https://metanaria.planaria.network/q/" + b64;
+    const response = await fetch(url, { headers: { key: '1DzNX2LzKrmoyYVyqMG46LLknzSd7TUYYP' } });
+    const json = await response.json();
 
-    const metanet =  json.metanet[0]
+    const metanet =  json.metanet[0];
     const metanetNode = {
       nodeTxId: txid,
       nodeKey: metanet.node.a,
@@ -70,22 +67,20 @@ export class Clone {
       name: metanet.out[0].s8,
       parentTxId: null,
       parentKey: null
-    }
+    };
     if (metanet.out[0].s8) {
-      metanetNode.name = metanet.out[0].s8
+      metanetNode.name = metanet.out[0].s8;
     } else {
-      metanetNode.name = metanet.out[0].s4
+      metanetNode.name = metanet.out[0].s4;
     }
     if (metanet.parent) {
-      metanetNode.parentTxId = metanet.parent.tx
-      metanetNode.parentKey = metanet.parent.a
+      metanetNode.parentTxId = metanet.parent.tx;
+      metanetNode.parentKey = metanet.parent.a;
     }
     return metanetNode;
   }
 
   async getChildNodes(txid: string) {
-    //return (await (await fetch(this.metanetApiUrl + '/tx/' + txid + '/children')).json()).children
-
     const query = {
       "q": {
           "find": {
@@ -98,43 +93,32 @@ export class Clone {
               "out.s8": 1
           }
       }
-    }
+    };
 
-    const b64 = Buffer.from(JSON.stringify(query)).toString('base64') //btoa(JSON.stringify(query))
-    const url = "https://metanaria.planaria.network/q/" + b64
-    const response = await fetch(url, { headers: { key: '1DzNX2LzKrmoyYVyqMG46LLknzSd7TUYYP' } })
-    const json = await response.json()
-    
-    const children = []
+    const b64 = Buffer.from(JSON.stringify(query)).toString('base64'); //btoa(JSON.stringify(query))
+    const url = "https://metanaria.planaria.network/q/" + b64;
+    const response = await fetch(url, { headers: { key: '1DzNX2LzKrmoyYVyqMG46LLknzSd7TUYYP' } });
+    const json = await response.json();
 
-    for (const metanet of json.metanet) { 
+    const children = [];
+
+    for (const metanet of json.metanet) {
       const metanetNode = {
         nodeTxId: metanet.node.tx,
         nodeKey: metanet.node.a,
         nodeType: metanet.out[0].s4,
         name: metanet.out[0].s8,
-      }
+      };
       if (metanet.out[0].s8) {
-        metanetNode.name = metanet.out[0].s8
+        metanetNode.name = metanet.out[0].s8;
       } else {
-        metanetNode.name = metanet.out[0].s4
+        metanetNode.name = metanet.out[0].s4;
       }
-      children.push(metanetNode)
+      children.push(metanetNode);
     }
     return children;
   }
-/*
-  async confirmOverwrite(filePath): Promise<boolean> {
-    let result = true;
-    if (fs.existsSync(filePath)) {
-      const rlp = readline.createInterface({input: process.stdin, output: process.stdout});
-      const response = await rlp.questionAsync(`The file "${filePath}" exists. \nDo you want to overwrite it? (Y/n)`);
-      rlp.close();
-      result = response !== 'n' && response !== 'N';
-    }
-    return result;
-  }
-*/
+
   async getFileData(txid) {
     const metanetNode = {
       txid: txid,
@@ -148,33 +132,37 @@ export class Clone {
       name: ''
     };
 
-    const result = await this.bitindex.tx.get(txid)
+    const result = await this.bitindex.tx.get(txid);
     // Get the opReturn
-    const vout = result.vout.find(vout => 'scriptPubKey' in vout && vout.scriptPubKey.type == 'nulldata')
+    const vout = result.vout.find(out => 'scriptPubKey' in out && out.scriptPubKey.type === 'nulldata');
     if (vout) {
-      metanetNode.parts = this.parseOpReturn(vout.scriptPubKey.hex)
+      metanetNode.parts = this.parseOpReturn(vout.scriptPubKey.hex);
 
       // Verify OP_RETURN
-      if (metanetNode.parts[0].toLowerCase() != '6a') throw 'Script of type nulldata is not an OP_RETURN'
+      if (metanetNode.parts[0].toLowerCase() !== '6a') {
+        throw 'Script of type nulldata is not an OP_RETURN';
+      }
 
       // Verify metanet tag
-      if (this.fromHex(metanetNode.parts[1]) != 'meta') throw 'OP_RETURN is not of type metanet'
+      if (this.fromHex(metanetNode.parts[1]) !== 'meta') {
+        throw 'OP_RETURN is not of type metanet';
+      }
 
-      metanetNode.publicKey = this.fromHex(metanetNode.parts[2])
-      metanetNode.parentTx = this.fromHex(metanetNode.parts[3])
-      metanetNode.type = this.fromHex(metanetNode.parts[4])
+      metanetNode.publicKey = this.fromHex(metanetNode.parts[2]);
+      metanetNode.parentTx = this.fromHex(metanetNode.parts[3]);
+      metanetNode.type = this.fromHex(metanetNode.parts[4]);
 
-      if (metanetNode.type == '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut') {
+      if (metanetNode.type === '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut') {
         // Interpret B file
-        metanetNode.data = this.fromHex(metanetNode.parts[5])
-        metanetNode.mediaType = this.fromHex(metanetNode.parts[6])
-        metanetNode.encoding = this.fromHex(metanetNode.parts[7])
-        metanetNode.name = this.fromHex(metanetNode.parts[8])
+        metanetNode.data = this.fromHex(metanetNode.parts[5]);
+        metanetNode.mediaType = this.fromHex(metanetNode.parts[6]);
+        metanetNode.encoding = this.fromHex(metanetNode.parts[7]);
+        metanetNode.name = this.fromHex(metanetNode.parts[8]);
       } else {
-        metanetNode.name = metanetNode.type
+        metanetNode.name = metanetNode.type;
       }
     }
-    return metanetNode.data
+    return metanetNode.data;
   }
 
   fromHex(s: string): string {
@@ -183,48 +171,48 @@ export class Clone {
 
   // Returns each part as hex string (e.g. 'abcdef')
   parseOpReturn(hex) {
-    let parts = []
+    const parts = [];
     // First part is op return
-    parts.push(hex[0] + hex[1])
+    parts.push(hex[0] + hex[1]);
     let index = 2;
     while (index < hex.length) {
       // Get the length
-      let lengthHex = hex[index] + hex[index + 1]
-      index += 2
+      let lengthHex = hex[index] + hex[index + 1];
+      index += 2;
       // Convert length to decimal
-      let length = parseInt(lengthHex, 16)
-      if (length == 76) {
+      let length = parseInt(lengthHex, 16);
+      if (length === 76) {
         // Next 1 byte contains the length
-        lengthHex = hex.substring(index, index + 2)
-        length = parseInt(lengthHex, 16)
-        index += 2
-      } else if (length == 77) {
+        lengthHex = hex.substring(index, index + 2);
+        length = parseInt(lengthHex, 16);
+        index += 2;
+      } else if (length === 77) {
         // Next 2 bytes contains the length, little endian
-        lengthHex = ''
+        lengthHex = '';
         for (let i = 0; i < 2; i++) {
-          lengthHex = hex[index + i * 2] + hex[index + i * 2 + 1] + lengthHex
+          lengthHex = hex[index + i * 2] + hex[index + i * 2 + 1] + lengthHex;
         }
-        length = parseInt(lengthHex, 16)
-        index += 4
-      } else if (length == 78) {
+        length = parseInt(lengthHex, 16);
+        index += 4;
+      } else if (length === 78) {
         // Next 4 bytes contains the length, little endian
-        lengthHex = ''
+        lengthHex = '';
         for (let i = 0; i < 4; i++) {
-          lengthHex = hex[index + i * 2] + hex[index + i * 2 + 1] + lengthHex
+          lengthHex = hex[index + i * 2] + hex[index + i * 2 + 1] + lengthHex;
         }
-        length = parseInt(lengthHex, 16)
-        index += 8
+        length = parseInt(lengthHex, 16);
+        index += 8;
       }
 
-      let data = ''
+      let data = '';
       // Read in data
       for (let i = 0; i < length; i++) {
-        data += hex[index] + hex[index + 1]
-        index += 2
+        data += hex[index] + hex[index + 1];
+        index += 2;
       }
-      parts.push(data)
+      parts.push(data);
     }
-    return parts
+    return parts;
   }
 }
 

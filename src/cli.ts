@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-import { push } from './push';
 import { clone } from './clone';
+import { push } from './push';
 
-(async () => {
+void (async () => {
   switch (process.argv[2]) {
-    case 'init': 
+    case 'init':
       push.init();
       break;
     case 'clone':
@@ -14,7 +14,7 @@ import { clone } from './clone';
         console.log('\tbsvpush clone txid');
         process.exit(1);
       }
-      const txid = process.argv[3]
+      const txid = process.argv[3];
       await clone.clone(txid);
       break;
     case 'help':
@@ -25,7 +25,11 @@ import { clone } from './clone';
       break;
     case 'push':
     case undefined:
-      await push.push();
+      try {
+        await push.push();
+      } catch (e) {
+        console.log(e);
+      }
       break;
   }
-})()
+})();

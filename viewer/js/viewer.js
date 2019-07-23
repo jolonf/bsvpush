@@ -31,9 +31,9 @@
   
   async function displayFeatured() {
     const featuredTransactions = [
-      '546d70c4de9324e9368ee92720ccbdc43c86332ac2677782b992d61d158bcfd0',
-      'a3663b6d8ef3d9b49e29152b60c5cadd9e2e673d90c12e029918028582fa3a17',
-      'a508bb614add6a66ba14b05794c9ae98afb34675a26d591dced88221c5ca4d03'
+      'fbe6d39df2765e89f561505cd94cac461da985a8fd50e5a62e12968f899b3b90', // bsvpush
+      'a3663b6d8ef3d9b49e29152b60c5cadd9e2e673d90c12e029918028582fa3a17', // connect4
+      'a508bb614add6a66ba14b05794c9ae98afb34675a26d591dced88221c5ca4d03' // bcat-client-stream
     ]
     displayRepos(featuredTransactions)
   }
@@ -78,15 +78,17 @@
 
     for (const metanet of json.metanet) { 
       const bsvpushJson = JSON.parse(metanet.out[0].s5)
-      metanetNode = {
-        nodeTxId: metanet.parent.tx,
-        nodeKey: metanet.parent.a,
-        name: bsvpushJson.name,
-        description: bsvpushJson.description,
-        sponsor: bsvpushJson.sponsor,
-        version: bsvpushJson.version
+      if (!bsvpushJson.hidden) {
+        metanetNode = {
+          nodeTxId: metanet.parent.tx,
+          nodeKey: metanet.parent.a,
+          name: bsvpushJson.name,
+          description: bsvpushJson.description,
+          sponsor: bsvpushJson.sponsor,
+          version: bsvpushJson.version
+        }
+        nodes.push(metanetNode)
       }
-      nodes.push(metanetNode)
     }
 
     // If there are nodes with the same public key, then remove older ones, and only keep the latest
@@ -138,7 +140,12 @@
 
   async function displayMetanetNode(txid) {
     const metanetNode = await getMetanetNode(txid)
-    //console.log(`Metanet Node public key: ${metanetNode.nodeKey}`)
+    if (!metanetNode.nodeKey) {
+      console.log('Not a metanet transaction');
+      return;
+    }
+    console.log(`Metanet Node public key: ${metanetNode.nodeKey}`)
+    console.log(`Metanet Node parent txid: ${metanetNode.parentTxId}`)
 
     document.querySelector('#metanet-node').style.display = 'block'
 
@@ -295,6 +302,7 @@
       } else {
         metanetNode.name = metanet.out[0].s4
       }
+      console.log('metanet parent: ' + metanet.parent)
       if (metanet.parent) {
         metanetNode.parentTxId = metanet.parent.tx
         metanetNode.parentKey = metanet.parent.a
