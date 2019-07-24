@@ -1,3 +1,4 @@
+import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline-promise';
@@ -226,6 +227,7 @@ export class Push {
         console.log(response);
         process.exit(1);
       }
+      await this.waitForUnconfirmedParents(fundingTx);
       await this.sendMetanetTransactions(fundingTx, null, this.metanetCache.root);
       fs.writeFileSync(path.join(process.cwd(), '.bsvpush', 'metanet.json'), JSON.stringify(this.metanetCache.toJSON(), null, 2));
       console.log(`\nRepository uploaded, view at: https://codeonchain.network?tx=${fundingTx.id}`);
@@ -396,6 +398,89 @@ export class Push {
   }
 
   /**
+   * Bitcoin has a maximum mempool chain of 25 unconfirmed parent transactions.
+   * Get all unconfirmed transactions for the funding address and ensure that the
+   * total outputs that are unconfirmed are below 25.
+   * @param fundingTx
+   */
+  async waitForUnconfirmedParents(fundingTx) {
+    await this.waitForFundingTransactionToAppear(fundingTx);
+    console.log('Waiting for unconfirmed parents (Bitcoin has a maximum of 25 unconfirmed parents), this could take several minutes...');
+    const fundingPublicKeyAddress = this.fundingKey.publicKey.toAddress().toString();
+    let previousUnconfirmedOutputs = 0;
+    let wait = true;
+    while (wait) {
+      const json = await this.genesisQuery({
+        "v": 3,
+        "q": {
+            "db": ["u"],
+            "find": {
+                "in.e.a": fundingPublicKeyAddress
+            },
+            "project": {
+                "tx.h": 1,
+                "out.i": 1
+            }
+        }
+      });
+
+      // Count unconfirmed outputs
+      const unconfirmedOutputs = json.u.reduce((count, tx) => count + tx.out.length, 0);
+      if (unconfirmedOutputs < 25) {
+        process.stdout.write('\n');
+        wait = false;
+      } else {
+        if (unconfirmedOutputs !== previousUnconfirmedOutputs) {
+          process.stdout.write(`\n[${unconfirmedOutputs}] `);
+          previousUnconfirmedOutputs = unconfirmedOutputs;
+        }
+        process.stdout.write('.');
+        await this.sleep(1000);
+      }
+    }
+  }
+
+  /**
+   * Wait for funding TX to appear in genesis before checking unconfirmed parents.
+   * @param fundingTx
+   */
+  async waitForFundingTransactionToAppear(fundingTx) {
+    console.log('Waiting for funding transaction to appear on network...');
+    let wait = true;
+    while (wait) {
+      const json = await this.genesisQuery({
+        "v": 3,
+        "q": {
+            "find": {
+                "tx.h": fundingTx.id
+            },
+            "project": {
+                "tx.h": 1
+            }
+        }
+      });
+
+      const items = json.u.concat(json.c);
+
+      if (items.length > 0) {
+        process.stdout.write('\n');
+        wait = false;
+      } else {
+        process.stdout.write('.');
+        await this.sleep(1000);
+      }
+    }
+  }
+
+  async genesisQuery(query) {
+    const b64 = Buffer.from(JSON.stringify(query)).toString('base64');
+    const url = "https://genesis.bitdb.network/q/1FnauZ9aUH2Bex6JzdcV4eNX7oLSSEbxtN/" + b64;
+    const response = await fetch(url, { headers: { key: '1DzNX2LzKrmoyYVyqMG46LLknzSd7TUYYP' } });
+    const json = await response.json();
+    return json;
+  }
+
+  /**
    * Sends the metanet transaction for the specified node and all of its children.
    * @param node
    * @param last is this the last child of the parent
@@ -420,69 +505,6 @@ export class Push {
     for (const key of keys) {
       await this.sendMetanetTransactions(fundingTx, node, node.children[key], key === keys[keys.length - 1]);
     }
-  }
-
-  /**
-   * Funding transaction has been sent, wait for UTXOs of all parents.
-   * @param fees
-   */
-/*  async waitForParentUTXOs(fees: object[]) {
-    // Group fees by parent
-    const feesByParent = this.groupBy(fees, 'parentKeyPath');
-    const keys = Object.keys(feesByParent);
-
-    let found = false;
-
-    while (!found) {
-      let utxoCount = 0;
-      for (const key of keys) {
-        // Get UTXOs
-        const privateKey = this.metanetCache.masterKey.deriveChild(key);
-        const utxos = await bitindex.address.getUtxos(privateKey.publicKey.toAddress().toString());
-        // Check if all UTXOs are satisfied
-        const parentFees = feesByParent[key];
-        try {
-          parentFees.forEach((fee) => {
-            this.filterUtxosExact(utxos, fee);
-            utxoCount++;
-          });
-        } catch (e) {
-          console.log(`[${utxoCount} / ${fees.length}] UTXOs ready`);
-          // Fee not found, try again
-          await this.sleep(1000);
-          continue;
-        }
-        found = true;
-      }
-    }
-
-  }*/
-
-  /**
-   * Groups the elements in the array by the element key.
-   * @param a
-   * @param key
-   */
-  groupBy(a: object[], key: string): object {
-    return a.reduce((result, element) => {
-      (result[element[key]] = result[element[key]] || []).push(element);
-      return result;
-    }, {});
-  }
-
-  async waitForConfirmation(txid: string) {
-      // Wait until the transaction appears
-      while (!('txid' in await bitindex.tx.get(txid))) {
-        console.log('Waiting for transaction to appear...');
-        await this.sleep(1000);
-      }
-
-      console.log('Waiting for transaction to be confirmed... (this could take a few minutes)');
-      while (!('confirmations' in await bitindex.tx.get(txid))) {
-        process.stdout.write('.');
-        await this.sleep(1000);
-      }
-      console.log(`\nTransaction confirmed: ${txid}`);
   }
 
   /**
