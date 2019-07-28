@@ -1,5 +1,9 @@
 
 ;(() => {
+
+  const bFileType = '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut'
+  const bcatProtocol = '15DHFxWZJT58f9nhyGnsRBqrgwK4W6h4Up'
+
   window.addEventListener('load', () => {
     const url = new URL(window.location)
     if (url.searchParams.has('tx')) {
@@ -31,7 +35,7 @@
   
   async function displayFeatured() {
     const featuredTransactions = [
-      'fbe6d39df2765e89f561505cd94cac461da985a8fd50e5a62e12968f899b3b90', // bsvpush
+      '21a58fae8d01df0b33f34e82e1ef30e49ad474e91890e027e926f88af15b9939', // bsvpush
       'a3663b6d8ef3d9b49e29152b60c5cadd9e2e673d90c12e029918028582fa3a17', // connect4
       'a508bb614add6a66ba14b05794c9ae98afb34675a26d591dced88221c5ca4d03' // bcat-client-stream
     ]
@@ -108,18 +112,20 @@
       row.querySelector('.version').textContent = node.version
       tbody.appendChild(row)
 
-      // Create a moneybutton, use tr:last-child as moneybutton needs an element, whereas row is a DocumentFragment
-      const moneyButtonDiv = tbody.querySelector('tr:last-child #node-money-button')
-      const defaults = {
-        amount: "1",
-        currency: "USD",
-        label: "Tip",
-        clientIdentifier: "3fb24dea420791729b4d9b39703c6339",
-        buttonId: node.nodeTxId,
-        buttonData: "{}",
-        type: "tip"
+      if (node.sponsor) {
+        // Create a moneybutton, use tr:last-child as moneybutton needs an element, whereas row is a DocumentFragment
+        const moneyButtonDiv = tbody.querySelector('tr:last-child #node-money-button')
+        const defaults = {
+          amount: "1",
+          currency: "USD",
+          label: "Tip",
+          clientIdentifier: "3fb24dea420791729b4d9b39703c6339",
+          buttonId: node.nodeTxId,
+          buttonData: "{}",
+          type: "tip"
+        }
+        moneyButton.render(moneyButtonDiv, Object.assign(defaults, node.sponsor))
       }
-      moneyButton.render(moneyButtonDiv, Object.assign(defaults, node.sponsor))
     })
   }
 
@@ -195,7 +201,7 @@
     const readme = children.find(c => c.name.toLowerCase() == 'readme.md')
     if (readme) {
       // Get the readme data
-      const md = fromHex(await getFileData(readme.nodeTxId))
+      const md = (await getFileData(readme.nodeTxId)).toString()
       showdown.setFlavor('github')
       const converter = new showdown.Converter()
       document.querySelector('#readme').innerHTML = converter.makeHtml(md)
@@ -208,7 +214,8 @@
     const bsvpushData = children.find(c => c.name.toLowerCase() == 'bsvpush.json')
     if (bsvpushData) {
       // Get the json file
-      const json = fromHex(await getFileData(bsvpushData.nodeTxId))
+      console.log('getting bsvpush.json')
+      const json = (await getFileData(bsvpushData.nodeTxId)).toString()
       const data = JSON.parse(json)
       if (data.version) {
         document.querySelector('#node-version').textContent = data.version
@@ -232,23 +239,23 @@
   }
 
   async function displayFile(metanetNode) {
-    // If this is a B:// file then get the data and display it
-    if (metanetNode.nodeType == '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut') {
+    // If this is a B:// or B://cat file then get the data and display it
+    if (metanetNode.nodeType == bFileType || metanetNode.nodeType == bcatProtocol) {
       const fileData = await getFileData(metanetNode.nodeTxId)
       const imgFileExts = ['.png', '.gif', '.jpg', '.jpeg']
       console.log('metanode name: ' + metanetNode.name)
       if (imgFileExts.find(e => metanetNode.name.endsWith(e))){
         console.log('img data')
         // Image
-        const bytes = hexToUint8Array(fileData)
-        const blob = new Blob([bytes])
+        const blob = new Blob([fileData])
         const url = URL.createObjectURL(blob)
         document.querySelector('#img-data').src = url
         document.querySelector('#img-data-container').style.display = 'block'
       } else {
         console.log('text data')
+        console.log(`encoding: ${metanetNode.encoding}`)
         // Text
-        const textData = fromHex(fileData)
+        textData = bsv.deps.Buffer.from(fileData).toString()
         const textNode = document.createTextNode(textData)
         document.querySelector('pre#text').appendChild(textNode)
         hljs.highlightBlock(document.querySelector('div#file-data'));
@@ -257,8 +264,6 @@
       document.querySelector('div#file-data').style.display = 'block'
     }
   }
-
-  const bFileType = '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut'
 
   /**
    * Creates an object representing a metanet node from a transaction.
@@ -277,6 +282,7 @@
               "out.s2": 1, // Node address
               "out.s3": 1, // Parent tx
               "out.s4": 1, // B File protocol
+              "out.s7": 1, // Encoding
               "out.s8": 1, // File name
           }
       }
@@ -296,6 +302,7 @@
         nodeKey: metanet.out[0].s2,
         nodeType: metanet.out[0].s4,
         name: metanet.out[0].s8,
+        encoding: metanet.out[0].s7
       }
       if (metanet.out[0].s8) {
         metanetNode.name = metanet.out[0].s8
@@ -318,7 +325,8 @@
               "out": 1,
               "out.s4": 1, // B File protocol
               "out.s8": 1 // File name
-          }
+          },
+          "limit": 200
       }
     }
 
@@ -347,6 +355,7 @@
   }
 
   async function getFileData(txid) {
+    console.log(`Getting file data`)
     const metanetNode = {txid: txid}
     const result = await (await fetch(`https://api.whatsonchain.com/v1/bsv/main/tx/hash/${txid}`)).json()
 
@@ -365,17 +374,44 @@
       metanetNode.parentTx = fromHex(metanetNode.parts[3])
       metanetNode.type = fromHex(metanetNode.parts[4])
 
-      if (metanetNode.type == '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut') {
+      console.log(`type = ${metanetNode.type}`)
+
+      if (metanetNode.type == bFileType) {
         // Interpret B file
         metanetNode.data = metanetNode.parts[5]
         metanetNode.mediaType = fromHex(metanetNode.parts[6])
         metanetNode.encoding = fromHex(metanetNode.parts[7])
         metanetNode.name = fromHex(metanetNode.parts[8])
+
+        // Decode from hex and gunzip if necessary
+        metanetNode.data = bsv.deps.Buffer.from(metanetNode.data, 'hex')
+        if (metanetNode.encoding === 'gzip') {
+          const gunzip = new Zlib.Gunzip(metanetNode.data)
+          metanetNode.data = bsv.deps.Buffer.from(gunzip.decompress())
+        }
+      } else if (metanetNode.type == bcatProtocol) {
+        metanetNode.data = await getBcatData(metanetNode)
       } else {
         metanetNode.name = metanetNode.type
       }
     }
     return metanetNode.data
+  }
+
+  async function getBcatData(metanetNode) {
+    console.log(`Getting bcat data, parts.length = ${metanetNode.parts.length}`)
+    const arrayBuffers = []
+    // Bcat parts start at index 10
+    let i = 10
+    let txId
+    while (i < metanetNode.parts.length && (txId = fromHex(metanetNode.parts[i++])).length == 64) {
+      console.log(`Fetching part ${i-10}: ${txId}.`)
+      const response = await fetch(`https://bico.media/${txId}`)
+      arrayBuffers.push(await response.arrayBuffer())
+    }
+    const blob = new Blob(arrayBuffers)
+    const arrayBuffer = await new Response(blob).arrayBuffer()
+    return bsv.deps.Buffer.from(arrayBuffer)
   }
 
   // Returns each part as hex string (e.g. 'abcdef')

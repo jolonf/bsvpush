@@ -8,11 +8,13 @@
     <link rel="icon" type="image/png" href="img/favicon.png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <script src="js/viewer.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/bsv@0.26.4/bsv.min.js"></script> 
+    <script src='js/gunzip.min.js'></script>
+    <script src="https://www.moneybutton.com/moneybutton.js"></script>
+    <script src="js/viewer.js"></script> 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.9.0/showdown.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.8/styles/default.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.8/highlight.min.js"></script>
-    <script src="https://www.moneybutton.com/moneybutton.js"></script>
   </head>
 
   <body>
@@ -24,7 +26,7 @@
         <span id='upload'>Upload a repository to metanet using <a href="https://github.com/jolonf/bsvpush">bsvpush</a></span>
       </div>
       <div id="new-repo-btn-container">
-        <button id="new-repo-btn">+ New Repository</button>
+      <!--  <button id="new-repo-btn">+ New Repository</button> -->
       </div>
       <div id='search-container'>
         <input id='search-input' type='text' placeholder='Transaction id'><button id='search-button'><i class="fa fa-search"></i></button>
@@ -112,7 +114,9 @@
     <div id="footer-message"><p>metanet</p></div>
 
     <div id="new-repo-overlay">
-      
+      <div id="new-repo-dialog">
+        
+      </div>
     </div>
 
   </body>

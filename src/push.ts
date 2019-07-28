@@ -1,5 +1,6 @@
-import fetch from 'node-fetch';
+import crypto from 'crypto';
 import fs from 'fs';
+import fetch from 'node-fetch';
 import path from 'path';
 import readline from 'readline-promise';
 
@@ -7,6 +8,8 @@ import BitIndexSDK from 'bitindex-sdk';
 
 import { MetanetCache } from './metanet_cache';
 import { MetanetNode } from './metanet_node';
+import { BCatMetanetNode } from './bcat_metanet_node';
+import { gzipSync } from 'zlib';
 
 const bsv = require('bsv');
 const bitindex = new BitIndexSDK();
@@ -16,9 +19,16 @@ const bitindex = new BitIndexSDK();
  * Files/dir listed in .bsvignore will be ignored (currently only exact match).
  */
 export class Push {
-  fee = 400;
-  feeb = 1.1;
+  fee                = 400;
+  feeb               = 1.1;
   minimumOutputValue = 546;
+  maxFileSize        = 90000;
+  gzipThreshold      = 1000;
+
+  bFileProtocol      = '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut';   // B:// format https://github.com/unwriter/B
+  bCatProtocol       = '15DHFxWZJT58f9nhyGnsRBqrgwK4W6h4Up';   // http://bcat.bico.media/
+  bCatPartProtocol   = '1ChDHzdd1H4wSjgGMHyndZm6qxEDGjqpJL';   // BCat part
+  dipProtocol        = '1D1PdbxVxcjfovTATC3ginxjj4enTgxLyY';   // https://github.com/torusJKL/BitcoinBIPs/blob/master/DIP.md
 
   private _packageInfo;
   get packageInfo() {
@@ -211,7 +221,7 @@ export class Push {
     const fundingTxFee = Math.max(Math.ceil(fundingTx._estimateSize() * this.feeb), this.minimumOutputValue);
     const totalFee = metanetFees + fundingTxFee;
 
-    console.log(`Metanet fees will be: ${this.feeToString(metanetFees)}`);
+    console.log(`Metanet fees will be: ${this.feeToString(metanetFees)}, ${fees.length} transactions`);
     console.log(`Funding transaction fee will be: ${this.feeToString(fundingTxFee)}`);
     console.log(`Total: ${this.feeToString(totalFee)}`);
 
@@ -247,7 +257,7 @@ export class Push {
    */
   generateScripts(dir: string, node: MetanetNode, parent: MetanetNode, fees = []) {
     this.dirScript(node, parent); // Stage this node as a directory, then process children
-    this.estimateFee(node);
+    node.fee = this.estimateFee(node);
     console.log(`[${node.keyPath}] ${dir} (${node.fee} satoshis)`);
 
     // Root node is not included in the split funding transaction as it is funded directly
@@ -262,17 +272,26 @@ export class Push {
         if (file.isDirectory()) {
           let child = node.child(file.name);
           if (!child) {
-            child = node.addChild(file.name);
+            child = node.createChild(file.name);
           }
           child.dir = dir;
           child.voutIndex = fees.length + 1;
           this.generateScripts(path.join(dir, file.name), child, node, fees);
         } else {
-          const child = this.fileScript(dir, file.name, node);
+          const fileSize = fs.statSync(path.join(dir, file.name)).size;
+          const child = fileSize > this.maxFileSize ?
+                          this.bcatScript(dir, file.name, node) :
+                          this.fileScript(dir, file.name, node);
           child.voutIndex = fees.length + 1;
-          this.estimateFee(child);
+          child.fee = this.estimateFee(child);
           fees.push({parentKeyPath: node.keyPath, fee: child.fee});
           console.log(`[${child.keyPath}] ${dir}/${child.name} (${child.fee} satoshis)`);
+          if (child instanceof BCatMetanetNode) {
+            // Add parts fees, they will be funded by the BCat's parent
+            fees.push(...child.bcatPartFees.map(fee => ({parentKeyPath: node.keyPath, fee: fee})));
+            const bcatPartFees = child.bcatPartFees.reduce((sum, fee) => sum + fee, 0);
+            console.log(`\tPart fees: ${bcatPartFees} satoshis`);
+          }
         }
       } else {
         // If the file is ignored but appears as a child then mark it for removal
@@ -291,9 +310,11 @@ export class Push {
    * @param parent node of the parent directory
    */
   dirScript(child: MetanetNode, parent: MetanetNode) {
-    const oprParts = this.opReturnMetaHeader(parent, child);
-    oprParts.push(Buffer.from(child.name).toString('hex')); // Push the file name
-    child.opreturn = oprParts;
+    const opReturnPayload = [
+      ...this.metanetHeader(parent, child),
+      child.name
+    ];
+    child.opreturn = ['OP_RETURN', ...this.arrayToHexStrings(opReturnPayload)];
   }
 
   /**
@@ -306,40 +327,158 @@ export class Push {
   fileScript(dir: string, name: string, parent: MetanetNode): MetanetNode {
     let child = parent.child(name);
     if (!child) {
-      child = parent.addChild(name);
+      child = parent.createChild(name);
     }
     child.dir = dir;
 
-    const oprParts = this.opReturnMetaHeader(parent, child);
-    // B:// format https://github.com/unwriter/B
-    oprParts.push(Buffer.from('19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut').toString('hex')); // B://
-    oprParts.push(fs.readFileSync(path.join(dir, name)).toString('hex')); // Data
-    oprParts.push(Buffer.from(' ').toString('hex')); // Media Type
-    oprParts.push(Buffer.from(' ').toString('hex')); // Encoding
-    oprParts.push(Buffer.from(name).toString('hex')); // Filename
+    let data = fs.readFileSync(path.join(dir, name));
+    let mediaType = ' ';
+    let encoding = ' ';
 
-    child.opreturn = oprParts;
+    if (data.length > this.gzipThreshold) {
+      // Only compress if the compressed size is less than the original size
+      const compressed = gzipSync(data);
+      if (compressed.length < data.length) {
+        data = compressed;
+        mediaType = 'application/x-gzip'; // For compatibility with Bico.Media
+        encoding = 'gzip';
+      }
+    }
+
+    const algorithm = 'SHA512';
+    const hash = crypto.createHash(algorithm);
+    hash.update(data);
+    const digest = hash.digest('hex');
+    //console.log(`File '${name}' ${algorithm} digest: ${digest}`);
+
+    const opReturnPayload = [
+      ...this.metanetHeader(parent, child),
+      this.bFileProtocol,   // B:// format
+      data,                 // Data
+      mediaType,            // Media Type
+      encoding,             // Encoding
+      name,                 // Filename
+      '|',                  // Pipe
+      this.dipProtocol,     // Data Integrity Protocol, file hash
+      algorithm,            // Integrity check algorithm
+      digest,
+      0x01,                 // Explicit field encoding
+      0x05                  // Hash the B:// data field
+    ];
+
+    child.opreturn = ['OP_RETURN', ...this.arrayToHexStrings(opReturnPayload)];
     return child;
   }
 
   /**
-   * Creates a OP RETURN metanet header with the public key of the child
+   * 
+   * @param dir
+   * @param name
+   * @param parent
+   */
+  bcatScript(dir: string, name: string, parent: MetanetNode): BCatMetanetNode {
+    const child = new BCatMetanetNode();
+    child.name = name;
+    child.dir = dir;
+    parent.addChild(child);
+
+    const data = fs.readFileSync(path.join(dir, name));
+    const algorithm = 'SHA512';
+    const hash = crypto.createHash(algorithm);
+    hash.update(data);
+    const digest = hash.digest('hex');
+    //console.log(`File '${name}' ${algorithm} digest: ${digest}`);
+
+    const opReturnPayload = [
+      ...this.metanetHeader(parent, child),
+      this.bCatProtocol,   // Bcat:// format
+      ' ',                 // Info
+      ' ',                 // MIME Type
+      ' ',                 // Encoding
+      name,                // Filename
+      ' '                  // Flag
+    ];
+
+    child.bcatPartFees = this.bcatPartFees(data);
+
+    // Add dummy txids to the payload, for size estimation
+    child.bcatPartFees.forEach(() => opReturnPayload.push('e29bc8d6c7298e524756ac116bd3fb5355eec1da94666253c3f40810a4000804'));
+
+    const dip = [
+      '|',                  // Pipe
+      this.dipProtocol,     // Data Integrity Protocol, file hash
+      algorithm,            // Integrity check algorithm
+      digest,
+      0x01,                 // Explicit field encoding
+      0x05                  // Hash the B:// data field
+    ];
+
+    child.opreturn = ['OP_RETURN', ...this.arrayToHexStrings([...opReturnPayload, ...dip])];
+    return child;
+  }
+
+  bcatPartFees(data: Buffer): number[] {
+    const bcatPartFees = [];
+
+    for (let i = 0; i < data.length; i += this.maxFileSize) {
+      const buffer = data.subarray(i, i + this.maxFileSize);
+
+      const opReturnPayload = [
+        this.bCatPartProtocol,   // Bcat:// part
+        buffer                   // data
+      ];
+
+      const opReturn = ['OP_RETURN', ...this.arrayToHexStrings(opReturnPayload)];
+
+      // Create transaction
+      const script = bsv.Script.fromASM(opReturn.join(' '));
+      if (script.toBuffer().length > 100000) {
+        console.log(`Maximum OP_RETURN size is 100000 bytes. Script is ${script.toBuffer().length} bytes.`);
+        process.exit(1);
+      }
+
+      const tempTX = new bsv.Transaction().from([this.getDummyUTXO()]);
+      tempTX.addOutput(new bsv.Transaction.Output({ script: script.toString(), satoshis: 0 }));
+
+      bcatPartFees.push(Math.max(Math.ceil(tempTX._estimateSize() * this.feeb), this.minimumOutputValue));
+    }
+
+    return bcatPartFees;
+  }
+
+  /**
+   * Creates a metanet header with the public key of the child
    * and the public key and transaction id of the parent node.
    * @param parent
    * @param child
    */
-  opReturnMetaHeader(parent: MetanetNode, child: MetanetNode): string[] {
+  metanetHeader(parent: MetanetNode, child: MetanetNode): string[] {
     const childKey = this.metanetCache.masterKey.deriveChild(child.keyPath);
-    const oprParts = new Array<string>();
-    oprParts.push('OP_RETURN');
-    oprParts.push(Buffer.from('meta').toString('hex'));
-    oprParts.push(Buffer.from(childKey.publicKey.toAddress().toString()).toString('hex'));
     const txid = (parent === null ? 'NULL' : parent.txId);
-    oprParts.push(Buffer.from(txid).toString('hex'));
-    return oprParts;
+    return [
+      'meta',
+      childKey.publicKey.toAddress().toString(),
+      txid
+    ];
   }
 
-  estimateFee(node: MetanetNode) {
+  /**
+   * Converts the OP_RETURN payload to hex strings.
+   * @param array
+   */
+  arrayToHexStrings(array): string[] {
+    return array.map(e => { 
+      if (e instanceof Buffer) {
+        return e.toString('hex');
+      } else if (typeof e === 'number') {
+        return e.toString(16).padStart(2, '0');
+      } else {
+        return Buffer.from(e).toString('hex');
+      }
+    });
+  }
+
+  estimateFee(node): number {
     const script = bsv.Script.fromASM(node.opreturn.join(' '));
     if (script.toBuffer().length > 100000) {
       console.log(`Maximum OP_RETURN size is 100000 bytes. Script is ${script.toBuffer().length} bytes.`);
@@ -348,10 +487,11 @@ export class Push {
 
     const tempTX = new bsv.Transaction().from([this.getDummyUTXO()]);
     tempTX.addOutput(new bsv.Transaction.Output({ script: script.toString(), satoshis: 0 }));
-    node.fee = Math.max(Math.ceil(tempTX._estimateSize() * this.feeb), this.minimumOutputValue);
 
     // Use the dummy txid for now as it will be used in the children tx size calculations
     node.txId = tempTX.id.toString();
+
+    return Math.max(tempTX._estimateFee(), this.minimumOutputValue);
   }
 
   /**
@@ -491,6 +631,10 @@ export class Push {
 
     // Don't send if root node, as it was already sent in the funding transaction
     if (parent) {
+      if (node instanceof BCatMetanetNode) {
+        // Send parts first
+        await this.sendBCatParts(fundingTx, parent, node);
+      }
       const tx = await this.metanetTransaction(fundingTx, parent, node);
       console.log(`\tSending metanet transaction: ${tx.id}`);
       const response = await bitindex.tx.send(tx.toString());
@@ -505,6 +649,47 @@ export class Push {
     for (const key of keys) {
       await this.sendMetanetTransactions(fundingTx, node, node.children[key], key === keys[keys.length - 1]);
     }
+  }
+
+  async sendBCatParts(fundingTx, parent: MetanetNode, node: BCatMetanetNode) {
+    const bcatTxIds = [];
+    const data = fs.readFileSync(path.join(node.dir, node.name));
+    let voutIndex = node.voutIndex + 1;
+
+    for (let i = 0; i < data.length; i += this.maxFileSize) {
+      const buffer = data.subarray(i, i + this.maxFileSize);
+
+      const opReturnPayload = [
+        this.bCatPartProtocol,     // Bcat:// part
+        buffer                     // data
+      ];
+
+      const opReturn = ['OP_RETURN', ...this.arrayToHexStrings(opReturnPayload)];
+
+      const parentKey = this.metanetCache.masterKey.deriveChild(parent.keyPath);
+      let utxo = null;
+      while (!(utxo = await this.findUtxo(parentKey.publicKey.toAddress().toString(), fundingTx.id, voutIndex))) {
+        console.log(`Waiting for UTXO for key: ${parentKey.publicKey.toAddress().toString()}, txid: ${fundingTx.id}, vout: ${node.voutIndex}`);
+        await this.sleep(1000);
+      }
+      voutIndex++;
+      const script = bsv.Script.fromASM(opReturn.join(' '));
+      const tx = new bsv.Transaction().from([utxo]);
+      tx.addOutput(new bsv.Transaction.Output({ script: script.toString(), satoshis: 0 }));
+      tx.fee(node.fee);
+      tx.sign(parentKey.privateKey);
+      bcatTxIds.push(tx.id);
+      console.log(`\tSending Bcat part [${bcatTxIds.length}] tx id: ${tx.id}`);
+      const response = await bitindex.tx.send(tx.toString());
+      if (!response.txid) {
+        console.log('Error sending transaction.');
+        console.log(response);
+        process.exit(1);
+      }
+    }
+
+    // Update BCat opreturn with the txids
+    bcatTxIds.forEach((txId, i) => node.opreturn[10 + i] = Buffer.from(txId).toString('hex'));
   }
 
   /**
@@ -549,7 +734,7 @@ export class Push {
     });
   }
 
-  sleep(ms) {
+  async sleep(ms) {
     return new Promise(resolve => {
         setTimeout(resolve, ms);
     });

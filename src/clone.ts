@@ -4,12 +4,14 @@ import path from 'path';
 import readline from 'readline-promise';
 
 import BitIndexSDK from 'bitindex-sdk';
+import { gunzipSync } from 'zlib';
 
 /**
  * Clones the directory structure represented by the transaction id to the local file system.
  * Note that at this stage it doesn't create the .bsvpush directory or the metanet.json file.
  */
 export class Clone {
+  bcatProtocol = '15DHFxWZJT58f9nhyGnsRBqrgwK4W6h4Up';
   bFileType = '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut';
   bitindex = new BitIndexSDK();
 
@@ -19,7 +21,7 @@ export class Clone {
   }
 
   async cloneRecursive(node, dir) {
-    if (node.nodeType === this.bFileType) {
+    if (node.nodeType === this.bFileType || node.nodeType === this.bcatProtocol) {
       const filePath = path.join(dir, node.name);
       console.log(`Cloning file: ${filePath}`);
       const data = await this.getFileData(node.nodeTxId);
@@ -50,7 +52,8 @@ export class Clone {
               "out.s4": 1,
               "out.s8": 1,
               "parent": 1
-          }
+          },
+          "limit": 200
       }
     };
 
@@ -119,14 +122,14 @@ export class Clone {
     return children;
   }
 
-  async getFileData(txid) {
+  async getFileData(txid: string): Promise<Buffer> {
     const metanetNode = {
       txid: txid,
       parts: [],
       publicKey: '',
       parentTx: '',
       type: '',
-      data: '',
+      data: null,
       mediaType: '',
       encoding: '',
       name: ''
@@ -152,17 +155,37 @@ export class Clone {
       metanetNode.parentTx = this.fromHex(metanetNode.parts[3]);
       metanetNode.type = this.fromHex(metanetNode.parts[4]);
 
-      if (metanetNode.type === '19HxigV4QyBv3tHpQVcUEQyq1pzZVdoAut') {
+      if (metanetNode.type === this.bFileType) {
         // Interpret B file
-        metanetNode.data = this.fromHex(metanetNode.parts[5]);
+        metanetNode.data = Buffer.from(metanetNode.parts[5], 'hex');
         metanetNode.mediaType = this.fromHex(metanetNode.parts[6]);
         metanetNode.encoding = this.fromHex(metanetNode.parts[7]);
         metanetNode.name = this.fromHex(metanetNode.parts[8]);
+
+        // gunzip if necessary
+        if (metanetNode.encoding === 'gzip') {
+          metanetNode.data = gunzipSync(metanetNode.data);
+        }
+      } else if (metanetNode.type === this.bcatProtocol) {
+        metanetNode.data = await this.getBcatData(metanetNode);
       } else {
         metanetNode.name = metanetNode.type;
       }
     }
     return metanetNode.data;
+  }
+
+  async getBcatData(metanetNode) {
+    const buffers = [];
+    // Bcat parts start at index 10
+    let i = 10;
+    let txId;
+    while (i < metanetNode.parts.length && (txId = this.fromHex(metanetNode.parts[i++])).length === 64) {
+      console.log(`\tFetching part ${i-10}: ${txId}.`);
+      const response = await fetch(`https://bico.media/${txId}`);
+      buffers.push(await response.buffer());
+    }
+    return Buffer.concat(buffers);
   }
 
   fromHex(s: string): string {

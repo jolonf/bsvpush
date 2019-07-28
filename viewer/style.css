@@ -276,6 +276,10 @@ td.txid {
   font-size: 0.8em;
 }
 
+td.description {
+  width: 460px;
+}
+
 div#readme {
   box-sizing: border-box;
   width: 980px;

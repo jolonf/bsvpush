@@ -13,7 +13,7 @@ export class MetanetNode {
   removed = false; // will be set to true if child exists but appears in ignore list
 
   // Fields which aren't stored
-  dir = ''; // this is used solely for displaying to the user
+  dir = ''; 
   fee = 0;
   opreturn = []; // Array of hex strings
   voutIndex = 0; // vout index in the funding transaction for the parent for this transaction
@@ -64,13 +64,19 @@ export class MetanetNode {
    * Adds a child with the specified name.
    * @param name
    */
-  addChild(name: string): MetanetNode {
+  createChild(name: string): MetanetNode {
     const child = new MetanetNode();
     child.index = this.nextIndex();
     child.keyPath = this.keyPath + `/${child.index}`;
     child.name = name;
     this.children[name] = child;
     return child;
+  }
+
+  addChild(child: MetanetNode) {
+    child.index = this.nextIndex();
+    child.keyPath = this.keyPath + `/${child.index}`;
+    this.children[child.name] = child;
   }
 
   remove() {
