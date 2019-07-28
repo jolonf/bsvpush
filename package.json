@@ -1,6 +1,6 @@
 {
   "name": "bsvpush",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Push files to metanet",
   "main": "dist/cli.js",
   "bin": "dist/cli.js",

@@ -94,7 +94,8 @@ export class Clone {
               "out": 1,
               "out.s4": 1,
               "out.s8": 1
-          }
+          },
+          "limit": 200
       }
     };
 
