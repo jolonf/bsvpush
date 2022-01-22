@@ -17,7 +17,7 @@
     "@types/node-fetch": "^2.3.7",
     "bitindex-sdk": "^3.0.14",
     "bsv": "^0.27.2",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^3.1.1",
     "readline-promise": "^1.0.4"
   },
   "devDependencies": {
