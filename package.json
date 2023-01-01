@@ -16,7 +16,7 @@
     "@types/node": "^12.6.2",
     "@types/node-fetch": "^2.3.7",
     "bitindex-sdk": "^3.0.14",
-    "bsv": "^0.27.2",
+    "bsv": "^2.0.10",
     "node-fetch": "^2.6.0",
     "readline-promise": "^1.0.4"
   },
